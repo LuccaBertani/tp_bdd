@@ -1,6 +1,14 @@
 --------------------------------------- Create database and tables --------------------------------------------------
 
 -- switch to master to safely delete LOS_GDDES if exists
+
+USE GD2C2025
+GO
+
+
+SELECT * FROM gd_esquema.Maestra
+
+
 USE master
 GO
 
@@ -38,27 +46,14 @@ CREATE TABLE Institucion (
 	id BIGINT NOT NULL IDENTITY(1,1),
 	nombre VARCHAR(255),
 	razon_social VARCHAR(255),
-	cuit BIGINT,
+	cuit CHAR(13),
 	CONSTRAINT PK_Institucion PRIMARY KEY (id)
 );
 
 CREATE TABLE Categoria (
 	id BIGINT NOT NULL IDENTITY(1,1),
 	nombre VARCHAR(255),
-	descripcion VARCHAR(500),
 	CONSTRAINT PK_Categoria PRIMARY KEY (id)
-);
-
-CREATE TABLE Tipo_Examen (
-	id BIGINT NOT NULL IDENTITY(1,1),
-	nombre VARCHAR(255),
-	CONSTRAINT PK_TipoExamen PRIMARY KEY (id)
-);
-
-CREATE TABLE Progreso (
-	id BIGINT NOT NULL IDENTITY(1,1),
-	nombre VARCHAR(255),
-	CONSTRAINT PK_Progreso PRIMARY KEY (id)
 );
 
 CREATE TABLE Estado (
@@ -67,30 +62,15 @@ CREATE TABLE Estado (
 	CONSTRAINT PK_Estado PRIMARY KEY (id)
 );
 
-CREATE TABLE Modalidad (
-	id BIGINT NOT NULL IDENTITY(1,1),
-	nombre VARCHAR(255),
-	CONSTRAINT PK_Modalidad PRIMARY KEY (id)
-);
-
-CREATE TABLE Materia (
-	id BIGINT NOT NULL IDENTITY(1,1),
-	nombre VARCHAR(255),
-	anio BIGINT,
-	CONSTRAINT PK_Materia PRIMARY KEY (id)
-);
-
 CREATE TABLE Turno (
 	id BIGINT NOT NULL IDENTITY(1,1),
 	nombre VARCHAR(255),
-	hora_inicio TIME,
-	hora_fin TIME,
 	CONSTRAINT PK_Turno PRIMARY KEY (id)
 );
 
 CREATE TABLE Mes(
 	id BIGINT NOT NULL IDENTITY(1,1),
-	nombre VARCHAR(255),
+	nombre VARCHAR(10),
 	CONSTRAINT PK_Mes PRIMARY KEY (id)
 );
 
@@ -148,45 +128,48 @@ CREATE TABLE Persona (
 	dni BIGINT,
 	nombre VARCHAR(255),
 	apellido VARCHAR(255),
-	quien_es VARCHAR(255),
-	fecha_nacimiento DATE,
+	fecha_nacimiento DATETIME,
 	id_provincia BIGINT,
 	id_localidad BIGINT,
 	domicilio VARCHAR(255),
 	telefono VARCHAR(255),
 	mail VARCHAR(255),
-	usuario VARCHAR(255),
-	contraseña VARCHAR(255),
 	CONSTRAINT PK_Persona PRIMARY KEY (id),
 	CONSTRAINT FK_Persona_Provincia FOREIGN KEY (id_provincia) REFERENCES Provincia (id),
 	CONSTRAINT FK_Persona_Localidad FOREIGN KEY (id_localidad) REFERENCES Localidad (id)
 );
 
 CREATE TABLE Alumno(
-	legajo BIGINT NOT NULL IDENTITY(1,1),
+	legajo BIGINT NOT NULL,
 	id_persona BIGINT,
 	CONSTRAINT PK_Alumno PRIMARY KEY (legajo),
 	CONSTRAINT FK_Alumno_Persona FOREIGN KEY (id_persona) REFERENCES Persona (id)
 );
+
+CREATE TABLE Profesor(
+	id BIGINT NOT NULL IDENTITY(1,1),
+	id_persona BIGINT
+	CONSTRAINT PK_Profesor PRIMARY KEY (id),
+	CONSTRAINT FK_Profesor_Persona FOREIGN KEY (id_persona) REFERENCES Persona (id)
+)
 
 -----------------------------------------------------
 -- CURSOS Y MÓDULOS
 -----------------------------------------------------
 
 CREATE TABLE Curso(
-	id BIGINT NOT NULL IDENTITY(1,1),
-	codigo BIGINT,
+	codigo_curso BIGINT NOT NULL,
 	nombre VARCHAR(255),
 	descripcion VARCHAR(1048),
-	fecha_inicio DATE,
-	fecha_fin DATE,
+	fecha_inicio DATETIME,
+	fecha_fin DATETIME,
 	duracion INT,
 	precio_mensual DECIMAL(18,2),
 	id_sede BIGINT,
 	id_profesor BIGINT,
 	id_categoria BIGINT,
 	id_turno BIGINT,
-	CONSTRAINT PK_Curso PRIMARY KEY (id),
+	CONSTRAINT PK_Curso PRIMARY KEY (codigo_curso),
 	CONSTRAINT FK_Curso_Sede FOREIGN KEY (id_sede) REFERENCES Sede (id),
 	CONSTRAINT FK_Curso_Profesor FOREIGN KEY (id_profesor) REFERENCES Persona (id),
 	CONSTRAINT FK_Curso_Categoria FOREIGN KEY (id_categoria) REFERENCES Categoria (id),
@@ -205,7 +188,7 @@ CREATE TABLE Modulo_Curso (
 	id_curso BIGINT,
 	id_modulo BIGINT,
 	CONSTRAINT PK_ModuloCurso PRIMARY KEY (id),
-	CONSTRAINT FK_ModuloCurso_Curso FOREIGN KEY (id_curso) REFERENCES Curso (id),
+	CONSTRAINT FK_ModuloCurso_Curso FOREIGN KEY (id_curso) REFERENCES Curso (codigo_curso),
 	CONSTRAINT FK_ModuloCurso_Modulo FOREIGN KEY (id_modulo) REFERENCES Modulo (id)
 );
 
@@ -213,7 +196,7 @@ CREATE TABLE Dia_Curso (
 	id_curso BIGINT,
 	id_dia BIGINT,
 	CONSTRAINT PK_DiaCurso PRIMARY KEY (id_curso, id_dia),
-	CONSTRAINT FK_DiaCurso_Curso FOREIGN KEY (id_curso) REFERENCES Curso (id),
+	CONSTRAINT FK_DiaCurso_Curso FOREIGN KEY (id_curso) REFERENCES Curso (codigo_curso),
 	CONSTRAINT FK_DiaCurso_Dia FOREIGN KEY (id_dia) REFERENCES Dia (id)
 );
 
@@ -222,18 +205,16 @@ CREATE TABLE Dia_Curso (
 -----------------------------------------------------
 
 CREATE TABLE Inscripcion_Curso (
-	numero_inscripcion BIGINT NOT NULL IDENTITY(1,1),
-	id_persona BIGINT NOT NULL,
+	numero_inscripcion BIGINT NOT NULL,
+	id_alumno BIGINT NOT NULL,
 	id_curso BIGINT NOT NULL,
-	fecha_inscripcion DATE,
-	fecha_respuesta DATE,
+	fecha_inscripcion DATETIME,
+	fecha_respuesta DATETIME,
 	id_estado BIGINT,
-	id_progreso BIGINT,
 	CONSTRAINT PK_InscripcionCurso PRIMARY KEY (numero_inscripcion),
-	CONSTRAINT FK_IC_Persona FOREIGN KEY (id_persona) REFERENCES Persona (id),
-	CONSTRAINT FK_IC_Curso FOREIGN KEY (id_curso) REFERENCES Curso (id),
-	CONSTRAINT FK_IC_Estado FOREIGN KEY (id_estado) REFERENCES Estado (id),
-	CONSTRAINT FK_IC_Progreso FOREIGN KEY (id_progreso) REFERENCES Progreso (id)
+	CONSTRAINT FK_IC_Alumno FOREIGN KEY (id_alumno) REFERENCES Alumno (legajo),
+	CONSTRAINT FK_IC_Curso FOREIGN KEY (id_curso) REFERENCES Curso (codigo_curso),
+	CONSTRAINT FK_IC_Estado FOREIGN KEY (id_estado) REFERENCES Estado (id)
 );
 
 -----------------------------------------------------
@@ -286,7 +267,7 @@ CREATE TABLE Final(
 );
 
 CREATE TABLE Inscripcion_final(
-	numero_inscripcion BIGINT NOT NULL IDENTITY(1,1),
+	numero_inscripcion BIGINT NOT NULL,
 	fecha_inscripcion DATETIME,
 	id_alumno BIGINT,
 	id_final BIGINT,
@@ -344,13 +325,13 @@ CREATE TABLE Periodo(
 );
 
 CREATE TABLE Factura (
-	numero_factura BIGINT IDENTITY(1,1),
-	fecha_emision DATE,
-	fecha_vencimiento DATE,
+	numero_factura BIGINT,
+	fecha_emision DATETIME,
+	fecha_vencimiento DATETIME,
 	monto_total DECIMAL(18,2),
-	id_persona BIGINT,
+	legajo_alumno BIGINT,
 	CONSTRAINT PK_Factura PRIMARY KEY (numero_factura),
-	CONSTRAINT FK_Factura_Persona FOREIGN KEY (id_persona) REFERENCES Persona (id)
+	CONSTRAINT FK_Factura_Legajo FOREIGN KEY (legajo_alumno) REFERENCES Alumno (legajo)
 );
 
 CREATE TABLE Detalle_Factura (
@@ -360,7 +341,7 @@ CREATE TABLE Detalle_Factura (
 	id_periodo BIGINT,
 	monto DECIMAL(18,2),
 	CONSTRAINT PK_DetalleFactura PRIMARY KEY (id),
-	CONSTRAINT FK_DetalleFactura_Curso FOREIGN KEY (id_curso) REFERENCES Curso (id),
+	CONSTRAINT FK_DetalleFactura_Curso FOREIGN KEY (id_curso) REFERENCES Curso (codigo_curso),
 	CONSTRAINT FK_DetalleFactura_Factura FOREIGN KEY (id_factura) REFERENCES Factura (numero_factura),
 	CONSTRAINT FK_DetalleFactura_Periodo FOREIGN KEY (id_periodo) REFERENCES Periodo (id)
 );
@@ -379,22 +360,6 @@ CREATE TABLE Pago(
 -----------------------------------------------------
 -- MODALIDADES Y DOCENTES (OPTIONAL - NOT IN MAESTRA)
 -----------------------------------------------------
-
-CREATE TABLE Modalidad_Materia (
-	id_modalidad BIGINT NOT NULL,
-	id_materia BIGINT NOT NULL,
-	CONSTRAINT PK_ModalidadMateria PRIMARY KEY (id_modalidad, id_materia),
-	CONSTRAINT FK_MM_Modalidad FOREIGN KEY (id_modalidad) REFERENCES Modalidad (id),
-	CONSTRAINT FK_MM_Materia FOREIGN KEY (id_materia) REFERENCES Materia (id)
-);
-
-CREATE TABLE Docente_Materia (
-	id_docente BIGINT NOT NULL,
-	id_materia BIGINT NOT NULL,
-	CONSTRAINT PK_DocenteMateria PRIMARY KEY (id_docente, id_materia),
-	CONSTRAINT FK_DM_Docente FOREIGN KEY (id_docente) REFERENCES Persona (id),
-	CONSTRAINT FK_DM_Materia FOREIGN KEY (id_materia) REFERENCES Materia (id)
-);
 
 GO
 
@@ -449,7 +414,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Institucion (nombre, razon_social, cuit)
-    SELECT DISTINCT Institucion_Nombre, Institucion_RazonSocial, TRY_CAST(Institucion_Cuit AS BIGINT)
+    SELECT DISTINCT Institucion_Nombre, Institucion_RazonSocial, Institucion_Cuit 
     FROM GD2C2025.gd_esquema.Maestra
     WHERE Institucion_Nombre IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Institucion i WHERE i.nombre = Institucion_Nombre);
