@@ -26,8 +26,8 @@ GO
 CREATE DATABASE LOS_GDDES
 GO
 
-USE LOS_GDDES
-GO
+--USE LOS_GDDES
+--GO
 
 PRINT 'Database LOS_GDDES created successfully'
 GO
@@ -69,8 +69,7 @@ CREATE TABLE Turno (
 );
 
 CREATE TABLE Mes(
-	id BIGINT NOT NULL IDENTITY(1,1),
-	nombre VARCHAR(10),
+	id BIGINT,
 	CONSTRAINT PK_Mes PRIMARY KEY (id)
 );
 
@@ -223,7 +222,7 @@ CREATE TABLE Inscripcion_Curso (
 
 CREATE TABLE Evaluacion (
 	id BIGINT NOT NULL IDENTITY(1,1),
-	fecha DATETIME,
+	fecha DATETIME2(6),
 	id_modulo_curso BIGINT,
 	CONSTRAINT PK_Evaluacion PRIMARY KEY (id),
 	CONSTRAINT FK_Evaluacion_ModuloCurso FOREIGN KEY (id_modulo_curso) REFERENCES Modulo_Curso (id)
@@ -235,7 +234,7 @@ CREATE TABLE Evaluacion_Alumno (
 	id_evaluacion BIGINT,
 	nota DECIMAL(5,2),
 	presente BIT,
-	instancia VARCHAR(255),
+	instancia INT,
 	CONSTRAINT PK_EvaluacionAlumno PRIMARY KEY (id),
 	CONSTRAINT FK_EA_Alumno FOREIGN KEY (id_alumno) REFERENCES Alumno (legajo),
 	CONSTRAINT FK_EA_Evaluacion FOREIGN KEY (id_evaluacion) REFERENCES Evaluacion (id)
@@ -245,10 +244,10 @@ CREATE TABLE TP (
 	id BIGINT NOT NULL IDENTITY(1,1),
 	id_curso BIGINT,
 	id_alumno BIGINT,
-	fecha_evaluacion DATETIME,
+	fecha_evaluacion DATETIME2(6),
 	nota DECIMAL(5,2),
 	CONSTRAINT PK_TP PRIMARY KEY (id),
-	CONSTRAINT FK_TP_Curso FOREIGN KEY (id_curso) REFERENCES Curso (id),
+	CONSTRAINT FK_TP_Curso FOREIGN KEY (id_curso) REFERENCES Curso (codigo_curso),
 	CONSTRAINT FK_TP_Alumno FOREIGN KEY (id_alumno) REFERENCES Alumno (legajo)
 );
 
@@ -258,17 +257,17 @@ CREATE TABLE TP (
 
 CREATE TABLE Final(
 	id BIGINT NOT NULL IDENTITY(1,1),
-	fecha DATETIME,
+	fecha DATETIME2(6),
 	hora VARCHAR(50),
 	descripcion VARCHAR(1048),
 	id_curso BIGINT,
 	CONSTRAINT PK_Final PRIMARY KEY (id),
-	CONSTRAINT FK_Final_Curso FOREIGN KEY (id_curso) REFERENCES Curso (id)
+	CONSTRAINT FK_Final_Curso FOREIGN KEY (id_curso) REFERENCES Curso (codigo_curso)
 );
 
 CREATE TABLE Inscripcion_final(
 	numero_inscripcion BIGINT NOT NULL,
-	fecha_inscripcion DATETIME,
+	fecha_inscripcion DATETIME2(6),
 	id_alumno BIGINT,
 	id_final BIGINT,
 	CONSTRAINT PK_InscripcionFinal PRIMARY KEY (numero_inscripcion),
@@ -282,7 +281,7 @@ CREATE TABLE Evaluacion_Final (
 	id_profesor BIGINT,
 	id_alumno BIGINT,
 	presente BIT,
-	nota DECIMAL(5,2),
+	nota BIGINT,
 	CONSTRAINT PK_EvaluacionFinal PRIMARY KEY (id),
 	CONSTRAINT FK_EF_Final FOREIGN KEY (id_final) REFERENCES Final (id),
 	CONSTRAINT FK_EF_Profesor FOREIGN KEY (id_profesor) REFERENCES Persona (id),
@@ -299,14 +298,14 @@ CREATE TABLE Encuesta (
 	fecha_registro DATETIME,
 	observaciones VARCHAR(1048),
 	CONSTRAINT PK_Encuesta PRIMARY KEY (id),
-	CONSTRAINT FK_Encuesta_Curso FOREIGN KEY (id_curso) REFERENCES Curso (id)
+	CONSTRAINT FK_Encuesta_Curso FOREIGN KEY (id_curso) REFERENCES Curso (codigo_curso)
 );
 
 CREATE TABLE Detalle_x_Pregunta (
 	id BIGINT NOT NULL IDENTITY(1,1),
 	id_encuesta BIGINT,
 	id_pregunta BIGINT,
-	respuesta VARCHAR(1048),
+	respuesta BIGINT,
 	CONSTRAINT PK_DetalleXPregunta PRIMARY KEY (id),
 	CONSTRAINT FK_DxP_Encuesta FOREIGN KEY (id_encuesta) REFERENCES Encuesta (id),
 	CONSTRAINT FK_DxP_Pregunta FOREIGN KEY (id_pregunta) REFERENCES Pregunta (id)
@@ -326,8 +325,8 @@ CREATE TABLE Periodo(
 
 CREATE TABLE Factura (
 	numero_factura BIGINT,
-	fecha_emision DATETIME,
-	fecha_vencimiento DATETIME,
+	fecha_emision DATETIME2(6),
+	fecha_vencimiento DATETIME2(6),
 	monto_total DECIMAL(18,2),
 	legajo_alumno BIGINT,
 	CONSTRAINT PK_Factura PRIMARY KEY (numero_factura),
@@ -349,7 +348,7 @@ CREATE TABLE Detalle_Factura (
 CREATE TABLE Pago(
 	id_pago BIGINT NOT NULL IDENTITY(1,1),
 	nro_factura BIGINT,
-	fecha_pago DATETIME,
+	fecha_pago DATETIME2(6),
 	importe DECIMAL(18,2),
 	id_metodoDePago BIGINT,
 	CONSTRAINT PK_Pago PRIMARY KEY (id_pago),
@@ -403,7 +402,8 @@ BEGIN
         SELECT Alumno_Localidad, Alumno_Provincia FROM GD2C2025.gd_esquema.Maestra WHERE Alumno_Localidad IS NOT NULL
     ) m
     INNER JOIN Provincia p ON p.nombre = m.provincia
-    WHERE NOT EXISTS (SELECT 1 FROM Localidad l WHERE l.nombre = m.localidad AND l.id_provincia = p.id);
+    WHERE
+        NOT EXISTS (SELECT 1 FROM Localidad l WHERE l.nombre = m.localidad AND l.id_provincia = p.id);
     PRINT 'Localidad: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -483,12 +483,9 @@ CREATE OR ALTER PROCEDURE MIGRATE_MES
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Mes (nombre)
-    SELECT nombre FROM (VALUES
-        ('Enero'),('Febrero'),('Marzo'),('Abril'),('Mayo'),('Junio'),
-        ('Julio'),('Agosto'),('Septiembre'),('Octubre'),('Noviembre'),('Diciembre')
-    ) AS Meses(nombre)
-    WHERE NOT EXISTS (SELECT 1 FROM Mes m WHERE m.nombre = Meses.nombre);
+    INSERT INTO Mes (id)
+    SELECT Distinct Periodo_Mes From GD2C2025.gd_esquema.Maestra
+    Where Periodo_Mes IS NOT NULL
     PRINT 'Mes: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -499,11 +496,10 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Dia (nombre)
-    SELECT DISTINCT TRIM(value)
+    SELECT DISTINCT TRIM(Curso_Dia)
     FROM GD2C2025.gd_esquema.Maestra
-    CROSS APPLY STRING_SPLIT(Curso_Dia, ',')
-    WHERE Curso_Dia IS NOT NULL AND TRIM(value) <> ''
-    AND NOT EXISTS (SELECT 1 FROM Dia d WHERE d.nombre = TRIM(value));
+    WHERE Curso_Dia IS NOT NULL AND TRIM(Curso_Dia) <> ''
+    AND NOT EXISTS (SELECT 1 FROM Dia d WHERE d.nombre = TRIM(Curso_Dia));
     PRINT 'Dia: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -529,7 +525,10 @@ BEGIN
     SET NOCOUNT ON;
     INSERT INTO Pregunta (pregunta)
     SELECT DISTINCT pregunta_text FROM (
-        SELECT Encuesta_Pregunta1 AS pregunta_text FROM GD2C2025.gd_esquema.Maestra WHERE Encuesta_Pregunta1 IS NOT NULL
+        SELECT 
+            Encuesta_Pregunta1 AS pregunta_text
+        FROM GD2C2025.gd_esquema.Maestra 
+        WHERE Encuesta_Pregunta1 IS NOT NULL
         UNION SELECT Encuesta_Pregunta2 FROM GD2C2025.gd_esquema.Maestra WHERE Encuesta_Pregunta2 IS NOT NULL
         UNION SELECT Encuesta_Pregunta3 FROM GD2C2025.gd_esquema.Maestra WHERE Encuesta_Pregunta3 IS NOT NULL
         UNION SELECT Encuesta_Pregunta4 FROM GD2C2025.gd_esquema.Maestra WHERE Encuesta_Pregunta4 IS NOT NULL
@@ -578,15 +577,15 @@ CREATE OR ALTER PROCEDURE MIGRATE_PERSONA_PROFESOR
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Persona (dni, nombre, apellido, quien_es, fecha_nacimiento, id_provincia, id_localidad, domicilio, telefono, mail)
+    INSERT INTO Persona (dni, nombre, apellido,  fecha_nacimiento, id_provincia, id_localidad, domicilio, telefono, mail)
     SELECT DISTINCT 
-        TRY_CAST(m.Profesor_Dni AS BIGINT), m.Profesor_nombre, m.Profesor_Apellido, 'Profesor',
+        TRY_CAST(m.Profesor_Dni AS BIGINT), m.Profesor_nombre, m.Profesor_Apellido,
         m.Profesor_FechaNacimiento, p.id, l.id, m.Profesor_Direccion, m.Profesor_Telefono, m.Profesor_Mail
     FROM GD2C2025.gd_esquema.Maestra m
     LEFT JOIN Provincia p ON p.nombre = m.Profesor_Provincia
     LEFT JOIN Localidad l ON l.nombre = m.Profesor_Localidad AND l.id_provincia = p.id
     WHERE m.Profesor_Dni IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Persona per WHERE per.dni = TRY_CAST(m.Profesor_Dni AS BIGINT) AND per.quien_es = 'Profesor');
+    AND NOT EXISTS (SELECT 1 FROM Persona per WHERE per.dni = TRY_CAST(m.Profesor_Dni AS BIGINT));
     PRINT 'Persona Profesor: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -596,15 +595,15 @@ CREATE OR ALTER PROCEDURE MIGRATE_PERSONA_ALUMNO
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Persona (dni, nombre, apellido, quien_es, fecha_nacimiento, id_provincia, id_localidad, domicilio, telefono, mail)
+    INSERT INTO Persona (dni, nombre, apellido, fecha_nacimiento, id_provincia, id_localidad, domicilio, telefono, mail)
     SELECT DISTINCT 
-        m.Alumno_Dni, m.Alumno_Nombre, m.Alumno_Apellido, 'Alumno',
+        m.Alumno_Dni, m.Alumno_Nombre, m.Alumno_Apellido,
         m.Alumno_FechaNacimiento, p.id, l.id, m.Alumno_Direccion, m.Alumno_Telefono, m.Alumno_Mail
     FROM GD2C2025.gd_esquema.Maestra m
     LEFT JOIN Provincia p ON p.nombre = m.Alumno_Provincia
     LEFT JOIN Localidad l ON l.nombre = m.Alumno_Localidad AND l.id_provincia = p.id
     WHERE m.Alumno_Dni IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Persona per WHERE per.dni = m.Alumno_Dni AND per.quien_es = 'Alumno');
+    AND NOT EXISTS (SELECT 1 FROM Persona per WHERE per.dni = m.Alumno_Dni);
     PRINT 'Persona Alumno: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -614,12 +613,26 @@ CREATE OR ALTER PROCEDURE MIGRATE_ALUMNO
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Alumno (id_persona)
-    SELECT DISTINCT p.id
+    INSERT INTO Alumno (id_persona, legajo)
+    SELECT DISTINCT p.id, m.Alumno_Legajo
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido))
     WHERE NOT EXISTS (SELECT 1 FROM Alumno a WHERE a.id_persona = p.id);
     PRINT 'Alumno: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
+END
+GO
+
+-- PROFESOR
+CREATE OR ALTER PROCEDURE MIGRATE_PROFESOR
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Profesor (id_persona)
+    SELECT DISTINCT p.id
+    FROM GD2C2025.gd_esquema.Maestra m
+    INNER JOIN Persona p ON p.dni = m.Profesor_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Profesor_Nombre),', ',Trim(m.Profesor_Apellido))
+    WHERE NOT EXISTS (SELECT 1 FROM Profesor prof WHERE prof.id_persona = p.id);
+    PRINT 'Profesor: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
 
@@ -628,17 +641,17 @@ CREATE OR ALTER PROCEDURE MIGRATE_CURSO
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Curso (codigo, nombre, descripcion, fecha_inicio, fecha_fin, duracion, precio_mensual, id_sede, id_profesor, id_categoria, id_turno)
+    INSERT INTO Curso (codigo_curso, nombre, descripcion, fecha_inicio, fecha_fin, duracion, precio_mensual, id_sede, id_profesor, id_categoria, id_turno)
     SELECT DISTINCT 
         m.Curso_Codigo, m.Curso_Nombre, m.Curso_Descripcion, m.Curso_FechaInicio, m.Curso_FechaFin,
         m.Curso_DuracionMeses, m.Curso_PrecioMensual, s.id, prof.id, cat.id, t.id
     FROM GD2C2025.gd_esquema.Maestra m
-    LEFT JOIN Sede s ON s.nombre = m.Sede_Nombre
-    LEFT JOIN Persona prof ON prof.dni = TRY_CAST(m.Profesor_Dni AS BIGINT) AND prof.quien_es = 'Profesor'
-    LEFT JOIN Categoria cat ON cat.nombre = m.Curso_Categoria
-    LEFT JOIN Turno t ON t.nombre = m.Curso_Turno
+    Inner JOIN Sede s ON s.nombre = m.Sede_Nombre
+    Inner JOIN Persona prof ON prof.dni = TRY_CAST(m.Profesor_Dni AS BIGINT)
+    Inner JOIN Categoria cat ON cat.nombre = m.Curso_Categoria
+    Inner JOIN Turno t ON t.nombre = m.Curso_Turno
     WHERE m.Curso_Codigo IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Curso c WHERE c.codigo = m.Curso_Codigo);
+    AND NOT EXISTS (SELECT 1 FROM Curso c WHERE c.codigo_curso = m.Curso_Codigo);
     PRINT 'Curso: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -649,12 +662,12 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Modulo_Curso (id_curso, id_modulo)
-    SELECT DISTINCT c.id, mo.id
+    SELECT DISTINCT c.codigo_curso, mo.id
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
     INNER JOIN Modulo mo ON mo.nombre = m.Modulo_Nombre
     WHERE m.Modulo_Nombre IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Modulo_Curso mc WHERE mc.id_curso = c.id AND mc.id_modulo = mo.id);
+    AND NOT EXISTS (SELECT 1 FROM Modulo_Curso mc WHERE mc.id_curso = c.codigo_curso AND mc.id_modulo = mo.id);
     PRINT 'Modulo_Curso: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -665,13 +678,12 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Dia_Curso (id_curso, id_dia)
-    SELECT DISTINCT c.id, d.id
+    SELECT DISTINCT c.codigo_curso, d.id
     FROM GD2C2025.gd_esquema.Maestra m
-    CROSS APPLY STRING_SPLIT(m.Curso_Dia, ',')
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Dia d ON d.nombre = TRIM(value)
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Dia d ON d.nombre = TRIM(m.Curso_Dia)
     WHERE m.Curso_Dia IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Dia_Curso dc WHERE dc.id_curso = c.id AND dc.id_dia = d.id);
+    AND NOT EXISTS (SELECT 1 FROM Dia_Curso dc WHERE dc.id_curso = c.codigo_curso AND dc.id_dia = d.id);
     PRINT 'Dia_Curso: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -681,14 +693,15 @@ CREATE OR ALTER PROCEDURE MIGRATE_INSCRIPCION_CURSO
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Inscripcion_Curso (id_persona, id_curso, fecha_inscripcion, fecha_respuesta, id_estado)
-    SELECT DISTINCT p.id, c.id, m.Inscripcion_Fecha, m.Inscripcion_FechaRespuesta, e.id
+    INSERT INTO Inscripcion_Curso (id_alumno, id_curso, fecha_inscripcion, fecha_respuesta, id_estado)
+    SELECT DISTINCT a.legajo, c.codigo_curso, m.Inscripcion_Fecha, m.Inscripcion_FechaRespuesta, e.id
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido))
+    INNER JOIN Alumno a ON a.id_persona = p.id
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
     LEFT JOIN Estado e ON e.nombre = m.Inscripcion_Estado
     WHERE m.Inscripcion_Numero IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Inscripcion_Curso ic WHERE ic.id_persona = p.id AND ic.id_curso = c.id);
+    AND NOT EXISTS (SELECT 1 FROM Inscripcion_Curso ic WHERE ic.id_alumno = a.legajo AND ic.id_curso = c.codigo_curso);
     PRINT 'Inscripcion_Curso: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -701,9 +714,9 @@ BEGIN
     INSERT INTO Evaluacion (fecha, id_modulo_curso)
     SELECT DISTINCT m.Evaluacion_Curso_fechaEvaluacion, mc.id
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
     INNER JOIN Modulo mo ON mo.nombre = m.Modulo_Nombre
-    INNER JOIN Modulo_Curso mc ON mc.id_curso = c.id AND mc.id_modulo = mo.id
+    INNER JOIN Modulo_Curso mc ON mc.id_curso = c.codigo_curso AND mc.id_modulo = mo.id
     WHERE m.Evaluacion_Curso_fechaEvaluacion IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Evaluacion ev WHERE ev.fecha = m.Evaluacion_Curso_fechaEvaluacion AND ev.id_modulo_curso = mc.id);
     PRINT 'Evaluacion: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
@@ -716,13 +729,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Evaluacion_Alumno (id_alumno, id_evaluacion, nota, presente, instancia)
-    SELECT DISTINCT a.legajo, ev.id, m.Evaluacion_Curso_Nota, m.Evaluacion_Curso_Presente, CAST(m.Evaluacion_Curso_Instancia AS VARCHAR(255))
+    SELECT DISTINCT a.legajo, ev.id, m.Evaluacion_Curso_Nota, m.Evaluacion_Curso_Presente, m.Evaluacion_Curso_Instancia
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
     INNER JOIN Alumno a ON a.id_persona = p.id
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
     INNER JOIN Modulo mo ON mo.nombre = m.Modulo_Nombre
-    INNER JOIN Modulo_Curso mc ON mc.id_curso = c.id AND mc.id_modulo = mo.id
+    INNER JOIN Modulo_Curso mc ON mc.id_curso = c.codigo_curso AND mc.id_modulo = mo.id
     INNER JOIN Evaluacion ev ON ev.fecha = m.Evaluacion_Curso_fechaEvaluacion AND ev.id_modulo_curso = mc.id
     WHERE m.Evaluacion_Curso_Nota IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Evaluacion_Alumno ea WHERE ea.id_alumno = a.legajo AND ea.id_evaluacion = ev.id);
@@ -736,13 +749,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO TP (id_curso, id_alumno, fecha_evaluacion, nota)
-    SELECT DISTINCT c.id, a.legajo, m.Trabajo_Practico_FechaEvaluacion, m.Trabajo_Practico_Nota
+    SELECT DISTINCT c.codigo_curso, a.legajo, m.Trabajo_Practico_FechaEvaluacion, m.Trabajo_Practico_Nota
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
     INNER JOIN Alumno a ON a.id_persona = p.id
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
     WHERE m.Trabajo_Practico_Nota IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM TP tp WHERE tp.id_alumno = a.legajo AND tp.id_curso = c.id AND tp.fecha_evaluacion = m.Trabajo_Practico_FechaEvaluacion);
+    AND NOT EXISTS (SELECT 1 FROM TP tp WHERE tp.id_alumno = a.legajo AND tp.id_curso = c.codigo_curso AND tp.fecha_evaluacion = m.Trabajo_Practico_FechaEvaluacion);
     PRINT 'TP: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -753,11 +766,11 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Final (fecha, hora, descripcion, id_curso)
-    SELECT DISTINCT m.Examen_Final_Fecha, m.Examen_Final_Hora, m.Examen_Final_Descripcion, c.id
+    SELECT DISTINCT m.Examen_Final_Fecha, m.Examen_Final_Hora, m.Examen_Final_Descripcion, c.codigo_curso
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
     WHERE m.Examen_Final_Fecha IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Final f WHERE f.fecha = m.Examen_Final_Fecha AND f.id_curso = c.id);
+    AND NOT EXISTS (SELECT 1 FROM Final f WHERE f.fecha = m.Examen_Final_Fecha AND f.id_curso = c.codigo_curso);
     PRINT 'Final: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -770,10 +783,10 @@ BEGIN
     INSERT INTO Inscripcion_final (fecha_inscripcion, id_alumno, id_final)
     SELECT DISTINCT m.Inscripcion_Final_Fecha, a.legajo, f.id
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
     INNER JOIN Alumno a ON a.id_persona = p.id
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Final f ON f.fecha = m.Examen_Final_Fecha AND f.id_curso = c.id
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Final f ON f.fecha = m.Examen_Final_Fecha AND f.id_curso = c.codigo_curso
     WHERE m.Inscripcion_Final_Nro IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Inscripcion_final if_ WHERE if_.id_alumno = a.legajo AND if_.id_final = f.id);
     PRINT 'Inscripcion_final: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
@@ -788,11 +801,11 @@ BEGIN
     INSERT INTO Evaluacion_Final (id_final, id_profesor, id_alumno, presente, nota)
     SELECT DISTINCT f.id, prof.id, a.legajo, m.Evaluacion_Final_Presente, m.Evaluacion_Final_Nota
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
     INNER JOIN Alumno a ON a.id_persona = p.id
-    INNER JOIN Persona prof ON prof.dni = TRY_CAST(m.Profesor_Dni AS BIGINT) AND prof.quien_es = 'Profesor'
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Final f ON f.fecha = m.Examen_Final_Fecha AND f.id_curso = c.id
+    INNER JOIN Persona prof ON prof.dni = TRY_CAST(m.Profesor_Dni AS BIGINT)
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Final f ON f.fecha = m.Examen_Final_Fecha AND f.id_curso = c.codigo_curso
     WHERE m.Evaluacion_Final_Nota IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Evaluacion_Final ef WHERE ef.id_final = f.id AND ef.id_alumno = a.legajo);
     PRINT 'Evaluacion_Final: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
@@ -805,11 +818,11 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Encuesta (id_curso, fecha_registro, observaciones)
-    SELECT DISTINCT c.id, m.Encuesta_FechaRegistro, m.Encuesta_Observacion
+    SELECT DISTINCT c.codigo_curso, m.Encuesta_FechaRegistro, m.Encuesta_Observacion
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
     WHERE m.Encuesta_FechaRegistro IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Encuesta en WHERE en.id_curso = c.id AND en.fecha_registro = m.Encuesta_FechaRegistro);
+    AND NOT EXISTS (SELECT 1 FROM Encuesta en WHERE en.id_curso = c.codigo_curso AND en.fecha_registro = m.Encuesta_FechaRegistro);
     PRINT 'Encuesta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -822,40 +835,40 @@ BEGIN
     
     -- Pregunta 1
     INSERT INTO Detalle_x_Pregunta (id_encuesta, id_pregunta, respuesta)
-    SELECT DISTINCT en.id, pr.id, CAST(m.Encuesta_Nota1 AS VARCHAR(1048))
+    SELECT DISTINCT en.id, pr.id, m.Encuesta_Nota1
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Encuesta en ON en.id_curso = c.id AND en.fecha_registro = m.Encuesta_FechaRegistro
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Encuesta en ON en.id_curso = c.codigo_curso AND en.fecha_registro = m.Encuesta_FechaRegistro
     INNER JOIN Pregunta pr ON pr.pregunta = m.Encuesta_Pregunta1
     WHERE m.Encuesta_Pregunta1 IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Detalle_x_Pregunta dxp WHERE dxp.id_encuesta = en.id AND dxp.id_pregunta = pr.id);
     
     -- Pregunta 2
     INSERT INTO Detalle_x_Pregunta (id_encuesta, id_pregunta, respuesta)
-    SELECT DISTINCT en.id, pr.id, CAST(m.Encuesta_Nota2 AS VARCHAR(1048))
+    SELECT DISTINCT en.id, pr.id, m.Encuesta_Nota2
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Encuesta en ON en.id_curso = c.id AND en.fecha_registro = m.Encuesta_FechaRegistro
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Encuesta en ON en.id_curso = c.codigo_curso AND en.fecha_registro = m.Encuesta_FechaRegistro
     INNER JOIN Pregunta pr ON pr.pregunta = m.Encuesta_Pregunta2
     WHERE m.Encuesta_Pregunta2 IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Detalle_x_Pregunta dxp WHERE dxp.id_encuesta = en.id AND dxp.id_pregunta = pr.id);
     
     -- Pregunta 3
     INSERT INTO Detalle_x_Pregunta (id_encuesta, id_pregunta, respuesta)
-    SELECT DISTINCT en.id, pr.id, CAST(m.Encuesta_Nota3 AS VARCHAR(1048))
+    SELECT DISTINCT en.id, pr.id,m.Encuesta_Nota3
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Encuesta en ON en.id_curso = c.id AND en.fecha_registro = m.Encuesta_FechaRegistro
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Encuesta en ON en.id_curso = c.codigo_curso AND en.fecha_registro = m.Encuesta_FechaRegistro
     INNER JOIN Pregunta pr ON pr.pregunta = m.Encuesta_Pregunta3
     WHERE m.Encuesta_Pregunta3 IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Detalle_x_Pregunta dxp WHERE dxp.id_encuesta = en.id AND dxp.id_pregunta = pr.id);
     
     -- Pregunta 4
     INSERT INTO Detalle_x_Pregunta (id_encuesta, id_pregunta, respuesta)
-    SELECT DISTINCT en.id, pr.id, CAST(m.Encuesta_Nota4 AS VARCHAR(1048))
+    SELECT DISTINCT en.id, pr.id,m.Encuesta_Nota4
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Encuesta en ON en.id_curso = c.id AND en.fecha_registro = m.Encuesta_FechaRegistro
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Encuesta en ON en.id_curso = c.codigo_curso AND en.fecha_registro = m.Encuesta_FechaRegistro
     INNER JOIN Pregunta pr ON pr.pregunta = m.Encuesta_Pregunta4
     WHERE m.Encuesta_Pregunta4 IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Detalle_x_Pregunta dxp WHERE dxp.id_encuesta = en.id AND dxp.id_pregunta = pr.id);
@@ -869,12 +882,13 @@ CREATE OR ALTER PROCEDURE MIGRATE_FACTURA
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Factura (fecha_emision, fecha_vencimiento, monto_total, id_persona)
-    SELECT DISTINCT m.Factura_FechaEmision, m.Factura_FechaVencimiento, m.Factura_Total, p.id
+    INSERT INTO Factura (fecha_emision, fecha_vencimiento, monto_total, legajo_alumno)
+    SELECT DISTINCT m.Factura_FechaEmision, m.Factura_FechaVencimiento, m.Factura_Total, a.legajo
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
+    INNER JOIN Alumno a on a.id_persona = p.id
     WHERE m.Factura_Numero IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Factura f WHERE f.fecha_emision = m.Factura_FechaEmision AND f.id_persona = p.id);
+    AND NOT EXISTS (SELECT 1 FROM Factura f WHERE f.fecha_emision = m.Factura_FechaEmision AND f.legajo_alumno = a.legajo);
     PRINT 'Factura: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -885,15 +899,16 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO Detalle_Factura (id_curso, id_factura, id_periodo, monto)
-    SELECT DISTINCT c.id, f.numero_factura, per.id, m.Detalle_Factura_Importe
+    SELECT DISTINCT c.codigo_curso, f.numero_factura, per.id, m.Detalle_Factura_Importe
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
-    INNER JOIN Curso c ON c.codigo = m.Curso_Codigo
-    INNER JOIN Factura f ON f.fecha_emision = m.Factura_FechaEmision AND f.id_persona = p.id
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
+    INNER JOIN Curso c ON c.codigo_curso = m.Curso_Codigo
+    INNER JOIN Alumno a on a.id_persona = p.id
+    INNER JOIN Factura f ON f.fecha_emision = m.Factura_FechaEmision AND f.legajo_alumno = a.legajo
     LEFT JOIN Mes mes ON mes.id = m.Periodo_Mes
     LEFT JOIN Periodo per ON per.anio = m.Periodo_Anio AND per.id_mes = mes.id
     WHERE m.Detalle_Factura_Importe IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM Detalle_Factura df WHERE df.id_factura = f.numero_factura AND df.id_curso = c.id AND df.id_periodo = per.id);
+    AND NOT EXISTS (SELECT 1 FROM Detalle_Factura df WHERE df.id_factura = f.numero_factura AND df.id_curso = c.codigo_curso AND df.id_periodo = per.id);
     PRINT 'Detalle_Factura: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
 GO
@@ -906,8 +921,9 @@ BEGIN
     INSERT INTO Pago (nro_factura, fecha_pago, importe, id_metodoDePago)
     SELECT DISTINCT f.numero_factura, m.Pago_Fecha, m.Pago_Importe, mp.id
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND p.quien_es = 'Alumno'
-    INNER JOIN Factura f ON f.fecha_emision = m.Factura_FechaEmision AND f.id_persona = p.id
+    INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
+    INNER JOIN Alumno a on p.id = a.id_persona
+    INNER JOIN Factura f ON f.fecha_emision = m.Factura_FechaEmision AND f.legajo_alumno = a.legajo
     LEFT JOIN MetodoDePago mp ON mp.descripcion = m.Pago_MedioPago
     WHERE m.Pago_Fecha IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Pago pg WHERE pg.nro_factura = f.numero_factura AND pg.fecha_pago = m.Pago_Fecha);
