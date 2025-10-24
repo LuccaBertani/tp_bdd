@@ -26,8 +26,8 @@ GO
 CREATE DATABASE LOS_GDDES
 GO
 
---USE LOS_GDDES
---GO
+USE LOS_GDDES
+GO
 
 PRINT 'Database LOS_GDDES created successfully'
 GO
