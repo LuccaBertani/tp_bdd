@@ -693,8 +693,8 @@ CREATE OR ALTER PROCEDURE MIGRATE_INSCRIPCION_CURSO
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Inscripcion_Curso (id_alumno, id_curso, fecha_inscripcion, fecha_respuesta, id_estado)
-    SELECT DISTINCT a.legajo, c.codigo_curso, m.Inscripcion_Fecha, m.Inscripcion_FechaRespuesta, e.id
+    INSERT INTO Inscripcion_Curso (numero_inscripcion, id_alumno, id_curso, fecha_inscripcion, fecha_respuesta, id_estado)
+    SELECT DISTINCT m.Inscripcion_Numero, a.legajo, c.codigo_curso, m.Inscripcion_Fecha, m.Inscripcion_FechaRespuesta, e.id
     FROM GD2C2025.gd_esquema.Maestra m
     INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido))
     INNER JOIN Alumno a ON a.id_persona = p.id
@@ -780,8 +780,8 @@ CREATE OR ALTER PROCEDURE MIGRATE_INSCRIPCION_FINAL
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Inscripcion_final (fecha_inscripcion, id_alumno, id_final)
-    SELECT DISTINCT m.Inscripcion_Final_Fecha, a.legajo, f.id
+    INSERT INTO Inscripcion_final (numero_inscripcion, fecha_inscripcion, id_alumno, id_final)
+    SELECT DISTINCT m.Inscripcion_Final_Nro, m.Inscripcion_Final_Fecha, a.legajo, f.id
     FROM GD2C2025.gd_esquema.Maestra m
     INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
     INNER JOIN Alumno a ON a.id_persona = p.id
@@ -882,8 +882,8 @@ CREATE OR ALTER PROCEDURE MIGRATE_FACTURA
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Factura (fecha_emision, fecha_vencimiento, monto_total, legajo_alumno)
-    SELECT DISTINCT m.Factura_FechaEmision, m.Factura_FechaVencimiento, m.Factura_Total, a.legajo
+    INSERT INTO Factura (numero_factura, fecha_emision, fecha_vencimiento, monto_total, legajo_alumno)
+    SELECT DISTINCT m.Factura_Numero, m.Factura_FechaEmision, m.Factura_FechaVencimiento, m.Factura_Total, a.legajo
     FROM GD2C2025.gd_esquema.Maestra m
     INNER JOIN Persona p ON p.dni = m.Alumno_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Alumno_Nombre),', ',Trim(m.Alumno_Apellido)) 
     INNER JOIN Alumno a on a.id_persona = p.id
