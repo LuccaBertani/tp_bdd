@@ -5,10 +5,6 @@
 USE GD2C2025
 GO
 
-
-SELECT * FROM gd_esquema.Maestra
-
-
 USE master
 GO
 
@@ -109,11 +105,9 @@ CREATE TABLE Sede(
 	direccion VARCHAR(255),
 	telefono VARCHAR(255),
 	mail VARCHAR(255),
-	id_provincia BIGINT,
 	id_localidad BIGINT,
 	id_institucion BIGINT,
 	CONSTRAINT PK_Sede PRIMARY KEY (id),
-	CONSTRAINT FK_Sede_Provincia FOREIGN KEY (id_provincia) REFERENCES Provincia (id),
 	CONSTRAINT FK_Sede_Localidad FOREIGN KEY (id_localidad) REFERENCES Localidad (id),
 	CONSTRAINT FK_Sede_Institucion FOREIGN KEY (id_institucion) REFERENCES Institucion (id)
 );
@@ -128,13 +122,11 @@ CREATE TABLE Persona (
 	nombre VARCHAR(255),
 	apellido VARCHAR(255),
 	fecha_nacimiento DATETIME,
-	id_provincia BIGINT,
 	id_localidad BIGINT,
 	domicilio VARCHAR(255),
 	telefono VARCHAR(255),
 	mail VARCHAR(255),
 	CONSTRAINT PK_Persona PRIMARY KEY (id),
-	CONSTRAINT FK_Persona_Provincia FOREIGN KEY (id_provincia) REFERENCES Provincia (id),
 	CONSTRAINT FK_Persona_Localidad FOREIGN KEY (id_localidad) REFERENCES Localidad (id)
 );
 
@@ -558,10 +550,10 @@ CREATE OR ALTER PROCEDURE MIGRATE_SEDE
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Sede (nombre, direccion, telefono, mail, id_provincia, id_localidad, id_institucion)
+    INSERT INTO Sede (nombre, direccion, telefono, mail, id_localidad, id_institucion)
     SELECT DISTINCT 
         m.Sede_Nombre, m.Sede_Direccion, m.Sede_Telefono, m.Sede_Mail,
-        p.id, l.id, i.id
+        l.id, i.id
     FROM GD2C2025.gd_esquema.Maestra m
     LEFT JOIN Provincia p ON p.nombre = m.Sede_Provincia
     LEFT JOIN Localidad l ON l.nombre = m.Sede_Localidad AND l.id_provincia = p.id
@@ -577,10 +569,10 @@ CREATE OR ALTER PROCEDURE MIGRATE_PERSONA_PROFESOR
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Persona (dni, nombre, apellido,  fecha_nacimiento, id_provincia, id_localidad, domicilio, telefono, mail)
+    INSERT INTO Persona (dni, nombre, apellido,  fecha_nacimiento, id_localidad, domicilio, telefono, mail)
     SELECT DISTINCT 
         TRY_CAST(m.Profesor_Dni AS BIGINT), m.Profesor_nombre, m.Profesor_Apellido,
-        m.Profesor_FechaNacimiento, p.id, l.id, m.Profesor_Direccion, m.Profesor_Telefono, m.Profesor_Mail
+        m.Profesor_FechaNacimiento, l.id, m.Profesor_Direccion, m.Profesor_Telefono, m.Profesor_Mail
     FROM GD2C2025.gd_esquema.Maestra m
     LEFT JOIN Provincia p ON p.nombre = m.Profesor_Provincia
     LEFT JOIN Localidad l ON l.nombre = m.Profesor_Localidad AND l.id_provincia = p.id
@@ -595,10 +587,10 @@ CREATE OR ALTER PROCEDURE MIGRATE_PERSONA_ALUMNO
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Persona (dni, nombre, apellido, fecha_nacimiento, id_provincia, id_localidad, domicilio, telefono, mail)
+    INSERT INTO Persona (dni, nombre, apellido, fecha_nacimiento, id_localidad, domicilio, telefono, mail)
     SELECT DISTINCT 
         m.Alumno_Dni, m.Alumno_Nombre, m.Alumno_Apellido,
-        m.Alumno_FechaNacimiento, p.id, l.id, m.Alumno_Direccion, m.Alumno_Telefono, m.Alumno_Mail
+        m.Alumno_FechaNacimiento, l.id, m.Alumno_Direccion, m.Alumno_Telefono, m.Alumno_Mail
     FROM GD2C2025.gd_esquema.Maestra m
     LEFT JOIN Provincia p ON p.nombre = m.Alumno_Provincia
     LEFT JOIN Localidad l ON l.nombre = m.Alumno_Localidad AND l.id_provincia = p.id
@@ -979,6 +971,8 @@ BEGIN TRY
     EXEC MIGRATE_PERSONA_ALUMNO;
     PRINT 'Migrating Table: Alumno'
     EXEC MIGRATE_ALUMNO;
+    PRINT 'Migrating Table: Profesor'
+    EXEC MIGRATE_PROFESOR
     PRINT 'Migrating Table: Curso'
     EXEC MIGRATE_CURSO;
     PRINT 'Migrating Table: Modulo_Curso'
