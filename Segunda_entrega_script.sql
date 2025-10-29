@@ -11,10 +11,8 @@ GO
 -- delete LOS_GDDES if exists
 IF EXISTS (SELECT * FROM sys.databases WHERE name = 'LOS_GDDES')
 BEGIN
-    PRINT 'Dropping existing LOS_GDDES database...'
     ALTER DATABASE LOS_GDDES SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
     DROP DATABASE LOS_GDDES;
-    PRINT 'Existing database dropped successfully'
 END
 GO
 
@@ -348,17 +346,12 @@ CREATE TABLE Pago(
 	CONSTRAINT FK_Pago_MetodoDePago FOREIGN KEY (id_metodoDePago) REFERENCES MetodoDePago (id)
 );
 
------------------------------------------------------
--- MODALIDADES Y DOCENTES (OPTIONAL - NOT IN MAESTRA)
------------------------------------------------------
-
 GO
 
-PRINT 'Schema and all 36 tables created successfully'
 
---------------------------------------------- CREATE STORE PROCEDURES -------------------------------------------------
+--------------------------------------------- STORE PROCEDURES -------------------------------------------------
 
-PRINT 'Starting Table Migration'
+PRINT 'Iniciando migracion...'
 GO
 
 -- PROVINCIA
@@ -368,7 +361,7 @@ BEGIN
     SET NOCOUNT ON;
     INSERT INTO Provincia (nombre)
     SELECT DISTINCT provincia FROM (
-        SELECT Sede_Provincia AS provincia FROM GD2C2025.gd_esquema.Maestra WHERE Sede_Provincia IS NOT NULL
+        SELECT Sede_Localidad AS provincia FROM GD2C2025.gd_esquema.Maestra WHERE Sede_Localidad IS NOT NULL
         UNION
         SELECT Profesor_Provincia FROM GD2C2025.gd_esquema.Maestra WHERE Profesor_Provincia IS NOT NULL
         UNION
@@ -387,11 +380,11 @@ BEGIN
     INSERT INTO Localidad (nombre, id_provincia)
     SELECT DISTINCT m.localidad, p.id
     FROM (
-        SELECT Sede_Localidad AS localidad, Sede_Provincia AS provincia FROM GD2C2025.gd_esquema.Maestra WHERE Sede_Localidad IS NOT NULL
+        SELECT Sede_Provincia AS localidad, Sede_Localidad AS provincia FROM GD2C2025.gd_esquema.Maestra WHERE Sede_Localidad IS NOT NULL AND Sede_Provincia IS NOT NULL
         UNION
-        SELECT Profesor_Localidad, Profesor_Provincia FROM GD2C2025.gd_esquema.Maestra WHERE Profesor_Localidad IS NOT NULL
+        SELECT Profesor_Localidad as localidad, Profesor_Provincia as provincia FROM GD2C2025.gd_esquema.Maestra WHERE Profesor_Localidad IS NOT NULL
         UNION
-        SELECT Alumno_Localidad, Alumno_Provincia FROM GD2C2025.gd_esquema.Maestra WHERE Alumno_Localidad IS NOT NULL
+        SELECT Alumno_Localidad as localidad, Alumno_Provincia as provincia FROM GD2C2025.gd_esquema.Maestra WHERE Alumno_Localidad IS NOT NULL
     ) m
     INNER JOIN Provincia p ON p.nombre = m.provincia
     WHERE
@@ -555,8 +548,8 @@ BEGIN
         m.Sede_Nombre, m.Sede_Direccion, m.Sede_Telefono, m.Sede_Mail,
         l.id, i.id
     FROM GD2C2025.gd_esquema.Maestra m
-    LEFT JOIN Provincia p ON p.nombre = m.Sede_Provincia
-    LEFT JOIN Localidad l ON l.nombre = m.Sede_Localidad AND l.id_provincia = p.id
+    LEFT JOIN Provincia p ON p.nombre = m.Sede_Localidad
+    LEFT JOIN Localidad l ON l.nombre = m.Sede_Provincia AND l.id_provincia = p.id
     LEFT JOIN Institucion i ON i.nombre = m.Institucion_Nombre
     WHERE m.Sede_Nombre IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM Sede s WHERE s.nombre = m.Sede_Nombre AND s.id_institucion = i.id);
@@ -571,7 +564,7 @@ BEGIN
     SET NOCOUNT ON;
     INSERT INTO Persona (dni, nombre, apellido,  fecha_nacimiento, id_localidad, domicilio, telefono, mail)
     SELECT DISTINCT 
-        TRY_CAST(m.Profesor_Dni AS BIGINT), m.Profesor_nombre, m.Profesor_Apellido,
+        TRY_CAST(m.Profesor_Dni AS BIGINT), m.Profesor_Apellido, m.Profesor_nombre,
         m.Profesor_FechaNacimiento, l.id, m.Profesor_Direccion, m.Profesor_Telefono, m.Profesor_Mail
     FROM GD2C2025.gd_esquema.Maestra m
     LEFT JOIN Provincia p ON p.nombre = m.Profesor_Provincia
@@ -622,7 +615,7 @@ BEGIN
     INSERT INTO Profesor (id_persona)
     SELECT DISTINCT p.id
     FROM GD2C2025.gd_esquema.Maestra m
-    INNER JOIN Persona p ON p.dni = m.Profesor_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Profesor_Nombre),', ',Trim(m.Profesor_Apellido))
+    INNER JOIN Persona p ON p.dni = m.Profesor_Dni AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Profesor_Apellido),', ',Trim(m.Profesor_nombre))
     WHERE NOT EXISTS (SELECT 1 FROM Profesor prof WHERE prof.id_persona = p.id);
     PRINT 'Profesor: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 END
@@ -636,10 +629,10 @@ BEGIN
     INSERT INTO Curso (codigo_curso, nombre, descripcion, fecha_inicio, fecha_fin, duracion, precio_mensual, id_sede, id_profesor, id_categoria, id_turno)
     SELECT DISTINCT 
         m.Curso_Codigo, m.Curso_Nombre, m.Curso_Descripcion, m.Curso_FechaInicio, m.Curso_FechaFin,
-        m.Curso_DuracionMeses, m.Curso_PrecioMensual, s.id, prof.id, cat.id, t.id
+        m.Curso_DuracionMeses, m.Curso_PrecioMensual, s.id, p.id, cat.id, t.id
     FROM GD2C2025.gd_esquema.Maestra m
     Inner JOIN Sede s ON s.nombre = m.Sede_Nombre
-    Inner JOIN Persona prof ON prof.dni = TRY_CAST(m.Profesor_Dni AS BIGINT)
+    Inner JOIN Persona p ON p.dni = TRY_CAST(m.Profesor_Dni AS BIGINT) AND concat(p.nombre,', ',p.apellido) = concat(Trim(m.Profesor_Apellido),', ',Trim(m.Profesor_nombre))
     Inner JOIN Categoria cat ON cat.nombre = m.Curso_Categoria
     Inner JOIN Turno t ON t.nombre = m.Curso_Turno
     WHERE m.Curso_Codigo IS NOT NULL
@@ -735,7 +728,7 @@ BEGIN
 END
 GO
 
--- TP (TRABAJO PRACTICO)
+-- TP
 CREATE OR ALTER PROCEDURE MIGRATE_TP
 AS
 BEGIN
@@ -936,7 +929,7 @@ PRINT 'LOS_GDDES database'
 BEGIN TRY
     BEGIN TRANSACTION MigrationTransaction;
     
-    -- Phase 1: Reference tables
+    
     PRINT 'Migrating Table: Provincia'
     EXEC MIGRATE_PROVINCIA;
     PRINT 'Migrating Table: Localidad'
@@ -962,7 +955,6 @@ BEGIN TRY
     PRINT 'Migrating Table: Pregunta'
     EXEC MIGRATE_PREGUNTA;
     
-    -- Phase 2: Entity tables
     PRINT 'Migrating Table: Sede'
     EXEC MIGRATE_SEDE;
     PRINT 'Migrating Table: Persona (Profesor)'
@@ -980,7 +972,6 @@ BEGIN TRY
     PRINT 'Migrating Table: Dia_Curso'
     EXEC MIGRATE_DIA_CURSO;
     
-    -- Phase 3: Relationship tables
     PRINT 'Migrating Table: Inscripcion_Curso'
     EXEC MIGRATE_INSCRIPCION_CURSO;
     PRINT 'Migrating Table: Evaluacion'
@@ -1006,68 +997,17 @@ BEGIN TRY
     PRINT 'Migrating Table: Pago'
     EXEC MIGRATE_PAGO;
     
-    -- Commit transaction
     COMMIT TRANSACTION MigrationTransaction;
     
     PRINT 'Migration completed successfully'
-    PRINT 'End Time: ' + CONVERT(VARCHAR, GETDATE(), 120)
     PRINT ''
-    
-    -- Summary report
-    PRINT 'Migration Summary Report'
-    PRINT ''
-    PRINT 'Reference Tables:'
-    SELECT @rowcount = COUNT(*) FROM Provincia; PRINT '  - Provincia: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Localidad; PRINT '  - Localidad: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Institucion; PRINT '  - Institucion: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Categoria; PRINT '  - Categoria: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Turno; PRINT '  - Turno: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Estado; PRINT '  - Estado: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM MetodoDePago; PRINT '  - MetodoDePago: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Mes; PRINT '  - Mes: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Periodo; PRINT '  - Periodo: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Dia; PRINT '  - Dia: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Modulo; PRINT '  - Modulo: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Pregunta; PRINT '  - Pregunta: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    PRINT ''
-    PRINT 'Entity Tables:'
-    SELECT @rowcount = COUNT(*) FROM Sede; PRINT '  - Sede: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Persona; PRINT '  - Persona: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Alumno; PRINT '  - Alumno: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Curso; PRINT '  - Curso: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Modulo_Curso; PRINT '  - Modulo_Curso: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Dia_Curso; PRINT '  - Dia_Curso: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    PRINT ''
-    PRINT 'Relationship Tables:'
-    SELECT @rowcount = COUNT(*) FROM Inscripcion_Curso; PRINT '  - Inscripcion_Curso: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Evaluacion; PRINT '  - Evaluacion: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Evaluacion_Alumno; PRINT '  - Evaluacion_Alumno: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM TP; PRINT '  - TP: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Final; PRINT '  - Final: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Inscripcion_final; PRINT '  - Inscripcion_final: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Evaluacion_Final; PRINT '  - Evaluacion_Final: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Encuesta; PRINT '  - Encuesta: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Detalle_x_Pregunta; PRINT '  - Detalle_x_Pregunta: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Factura; PRINT '  - Factura: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Detalle_Factura; PRINT '  - Detalle_Factura: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    SELECT @rowcount = COUNT(*) FROM Pago; PRINT '  - Pago: ' + CAST(@rowcount AS VARCHAR(10)) + ' rows'
-    PRINT ''
-    PRINT 'Total tables migrated: 30 tables'
-    
 END TRY
 BEGIN CATCH
-    -- Error handling
     IF @@TRANCOUNT > 0
         ROLLBACK TRANSACTION MigrationTransaction;
     
     PRINT ''
-    PRINT 'ERROR: Migration failed'
-    PRINT 'Error Number: ' + CAST(ERROR_NUMBER() AS VARCHAR(10))
-    PRINT 'Error Severity: ' + CAST(ERROR_SEVERITY() AS VARCHAR(10))
-    PRINT 'Error State: ' + CAST(ERROR_STATE() AS VARCHAR(10))
-    PRINT 'Error Line: ' + CAST(ERROR_LINE() AS VARCHAR(10))
-    PRINT 'Error Message: ' + ERROR_MESSAGE()
-    PRINT ''
-    PRINT 'Transaction rolled back - no data was migrated'
+    PRINT 'ERROR: Migracion fallida'
+    PRINT 'Rolled backing...'
 END CATCH
 GO
