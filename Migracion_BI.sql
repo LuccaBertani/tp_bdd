@@ -68,7 +68,8 @@ FROM BI_HechosInscripcionesCurso h
          JOIN BI_CategoriaCurso c ON h.id_categoriaCurso = c.id
          JOIN BI_TurnoCurso tr ON h.id_turnoCurso = tr.id
 GROUP BY t.anio, s.detalle, c.detalle, tr.detalle
-ORDER BY SUM(h.inscriptos) DESC;
+ORDER BY SUM(h.inscriptos) DESC
+GO
 
 /*
 Tasa de rechazo de inscripciones:
@@ -81,7 +82,8 @@ SELECT t.mes,
 FROM BI_HechosInscripcionesCurso h
          JOIN BI_Tiempo t ON h.id_tiempo = t.id
          JOIN BI_Sede s ON h.id_sede = s.id
-GROUP BY t.mes, s.detalle;
+GROUP BY t.mes, s.detalle
+GO
 
 /*
 Comparación de desempeño de cursada por sede:
@@ -96,7 +98,8 @@ SELECT t.anio,
 FROM BI_HechosCursadas h
          JOIN BI_Tiempo t ON h.id_tiempo = t.id
          JOIN BI_Sede s ON h.id_sede = s.id
-GROUP BY t.anio, s.detalle;
+GROUP BY t.anio, s.detalle
+GO
 
 /*
 Tiempo promedio de finalización de curso:
@@ -108,7 +111,8 @@ SELECT c.detalle                                                AS categoria,
        AVG(DATEDIFF(day, h.fecha_inicio, h.fecha_finalizacion)) AS dias_promedio
 FROM BI_HechosCursadas h
          JOIN BI_CategoriaCurso c ON h.id_categoriaCurso = c.id
-GROUP BY c.detalle;
+GROUP BY c.detalle
+GO
 
 /*
 Nota promedio de finales.
@@ -124,7 +128,8 @@ FROM BI_HechosCursadas h
          JOIN BI_CategoriaCurso c ON h.id_categoriaCurso = c.id
          JOIN BI_RangoEtarioAlumno r ON h.id_rangoAlumno = r.id
 WHERE h.nota_final IS NOT NULL
-GROUP BY t.semestre, c.detalle, r.detalle;
+GROUP BY t.semestre, c.detalle, r.detalle
+GO
 
 /*
 Tasa de ausentismo finales:
@@ -137,7 +142,8 @@ SELECT t.semestre,
 FROM BI_HechosInscripcionesFinal h
          JOIN BI_Tiempo t ON h.id_tiempo = t.id
          JOIN BI_Sede s ON h.id_sede = s.id
-GROUP BY t.semestre, s.detalle;
+GROUP BY t.semestre, s.detalle
+GO
 
 /*
 Desvío de pagos: Porcentaje de pagos realizados fuera de término por semestre. TODO: Cargar el booleano de pago fuera de termino en la migracion de los datos.
@@ -150,7 +156,8 @@ SELECT t.semestre,
 FROM BI_HechosPagos h
          JOIN BI_Tiempo t ON h.id_tiempo = t.id
          JOIN BI_Sede s ON h.id_sede = s.id
-GROUP BY t.semestre, s.detalle;
+GROUP BY t.semestre, s.detalle
+GO
 
 /*
 Tasa de Morosidad Financiera mensual.
@@ -162,7 +169,8 @@ SELECT t.mes,
        (SUM(f.monto_facturado - f.monto_pagado) * 1.0 / NULLIF(SUM(f.monto_facturado), 0)) * 100 AS tasa_morosidad
 FROM BI_HechosFacturacion f
          JOIN BI_Tiempo t ON f.id_tiempo = t.id
-GROUP BY t.mes;
+GROUP BY t.mes
+GO
 
 /*
 Ingresos por categoría de cursos: Las 3 categorías de cursos que generan mayores ingresos por sede, por año.
@@ -178,7 +186,8 @@ FROM BI_HechosFacturacion f
          JOIN BI_Sede s ON f.id_sede = s.id
          JOIN BI_CategoriaCurso c ON f.id_categoriaCurso = c.id
 GROUP BY t.anio, s.detalle, c.detalle
-ORDER BY SUM(f.monto_pagado) DESC;
+ORDER BY SUM(f.monto_pagado) DESC
+GO
 
 /*
 Índice de satisfacción. Índice de satisfacción anual, según rango etario de los profesores y sede.
@@ -209,7 +218,8 @@ FROM BI_HechosCursadas h
          JOIN BI_Sede s ON h.id_sede = s.id
          JOIN BI_RangoEtarioProfesor r ON h.id_rangoProfesor = r.id
          JOIN BI_BloqueSatisfaccion b ON h.id_satisfaccion = b.id
-GROUP BY t.anio, s.detalle, r.detalle;
+GROUP BY t.anio, s.detalle, r.detalle
+GO
 
 --------------------------------------- Views Created Successfully --------------------------------------------------
 

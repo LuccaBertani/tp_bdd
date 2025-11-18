@@ -1,17 +1,65 @@
 --------------------------------------- Create schema and tables --------------------------------------------------
 
--- Use GD2C2025 database
 USE GD2C2025
 GO
 
--- Delete LOS_GDDES schema if exists
 IF EXISTS (SELECT * FROM sys.schemas WHERE name = 'LOS_GDDES')
 BEGIN
+    DECLARE @sql NVARCHAR(MAX) = '';
+    
+    SELECT @sql = @sql + 'ALTER TABLE ' + QUOTENAME(s.name) + '.' + QUOTENAME(t.name) + 
+                  ' DROP CONSTRAINT ' + QUOTENAME(f.name) + ';' + CHAR(13)
+    FROM sys.foreign_keys f
+    INNER JOIN sys.tables t ON f.parent_object_id = t.object_id
+    INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+    WHERE s.name = 'LOS_GDDES';
+    
+    EXEC sp_executesql @sql;
+    
+    SET @sql = '';
+    SELECT @sql = @sql + 'DROP PROCEDURE ' + QUOTENAME(s.name) + '.' + QUOTENAME(p.name) + ';' + CHAR(13)
+    FROM sys.procedures p
+    INNER JOIN sys.schemas s ON p.schema_id = s.schema_id
+    WHERE s.name = 'LOS_GDDES';
+    
+    EXEC sp_executesql @sql;
+    
+    IF OBJECT_ID('LOS_GDDES.Pago', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Pago;
+    IF OBJECT_ID('LOS_GDDES.Detalle_Factura', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Detalle_Factura;
+    IF OBJECT_ID('LOS_GDDES.Factura', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Factura;
+    IF OBJECT_ID('LOS_GDDES.Periodo', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Periodo;
+    IF OBJECT_ID('LOS_GDDES.Detalle_x_Pregunta', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Detalle_x_Pregunta;
+    IF OBJECT_ID('LOS_GDDES.Encuesta', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Encuesta;
+    IF OBJECT_ID('LOS_GDDES.Evaluacion_Final', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Evaluacion_Final;
+    IF OBJECT_ID('LOS_GDDES.Inscripcion_final', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Inscripcion_final;
+    IF OBJECT_ID('LOS_GDDES.Final', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Final;
+    IF OBJECT_ID('LOS_GDDES.TP', 'U') IS NOT NULL DROP TABLE LOS_GDDES.TP;
+    IF OBJECT_ID('LOS_GDDES.Evaluacion_Alumno', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Evaluacion_Alumno;
+    IF OBJECT_ID('LOS_GDDES.Evaluacion', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Evaluacion;
+    IF OBJECT_ID('LOS_GDDES.Inscripcion_Curso', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Inscripcion_Curso;
+    IF OBJECT_ID('LOS_GDDES.Dia_Curso', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Dia_Curso;
+    IF OBJECT_ID('LOS_GDDES.Modulo_Curso', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Modulo_Curso;
+    IF OBJECT_ID('LOS_GDDES.Modulo', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Modulo;
+    IF OBJECT_ID('LOS_GDDES.Curso', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Curso;
+    IF OBJECT_ID('LOS_GDDES.Profesor', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Profesor;
+    IF OBJECT_ID('LOS_GDDES.Alumno', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Alumno;
+    IF OBJECT_ID('LOS_GDDES.Persona', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Persona;
+    IF OBJECT_ID('LOS_GDDES.Sede', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Sede;
+    IF OBJECT_ID('LOS_GDDES.Localidad', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Localidad;
+    IF OBJECT_ID('LOS_GDDES.Pregunta', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Pregunta;
+    IF OBJECT_ID('LOS_GDDES.MetodoDePago', 'U') IS NOT NULL DROP TABLE LOS_GDDES.MetodoDePago;
+    IF OBJECT_ID('LOS_GDDES.Dia', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Dia;
+    IF OBJECT_ID('LOS_GDDES.Mes', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Mes;
+    IF OBJECT_ID('LOS_GDDES.Turno', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Turno;
+    IF OBJECT_ID('LOS_GDDES.Estado', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Estado;
+    IF OBJECT_ID('LOS_GDDES.Categoria', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Categoria;
+    IF OBJECT_ID('LOS_GDDES.Institucion', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Institucion;
+    IF OBJECT_ID('LOS_GDDES.Provincia', 'U') IS NOT NULL DROP TABLE LOS_GDDES.Provincia;
+    
     DROP SCHEMA LOS_GDDES;
 END
 GO
 
--- Create LOS_GDDES schema
 CREATE SCHEMA LOS_GDDES
 GO
 
