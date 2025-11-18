@@ -39,6 +39,37 @@ IF OBJECT_ID('LOS_GDDES.BI_Sede', 'U') IS NOT NULL
 
 IF OBJECT_ID('LOS_GDDES.BI_Tiempo', 'U') IS NOT NULL
     DROP TABLE LOS_GDDES.BI_Tiempo;
+
+-- Drop vistas si existen
+IF OBJECT_ID('LOS_GDDES.VW_CategoriasTurnosMasSolicitados', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_CategoriasTurnosMasSolicitados;
+
+IF OBJECT_ID('LOS_GDDES.VW_TasaRechazoInscripciones', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_TasaRechazoInscripciones;
+
+IF OBJECT_ID('LOS_GDDES.VW_DesempenioCursadaPorSede', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_DesempenioCursadaPorSede;
+
+IF OBJECT_ID('LOS_GDDES.VW_TiempoPromedioFinalizacion', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_TiempoPromedioFinalizacion;
+
+IF OBJECT_ID('LOS_GDDES.VW_NotaPromedioFinales', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_NotaPromedioFinales;
+
+IF OBJECT_ID('LOS_GDDES.VW_TasaAusentismoFinales', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_TasaAusentismoFinales;
+
+IF OBJECT_ID('LOS_GDDES.VW_DesvioPagos', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_DesvioPagos;
+
+IF OBJECT_ID('LOS_GDDES.VW_TasaMorosidadMensual', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_TasaMorosidadMensual;
+
+IF OBJECT_ID('LOS_GDDES.VW_IngresosPorCategoria', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_IngresosPorCategoria;
+
+IF OBJECT_ID('LOS_GDDES.VW_IndiceSatisfaccion', 'V') IS NOT NULL
+    DROP VIEW LOS_GDDES.VW_IndiceSatisfaccion;
 GO
 
 CREATE TABLE LOS_GDDES.BI_Tiempo(
@@ -286,6 +317,7 @@ BEGIN
     FROM LOS_GDDES.MetodoDePago
     ORDER BY descripcion;
 END
+
 GO
 CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_BLOQUESATISFACCION
 AS
@@ -295,12 +327,12 @@ BEGIN
     INSERT INTO LOS_GDDES.BI_BloqueSatisfaccion (detalle)
     VALUES ('Satisfechos'), ('Neutrales'), ('Insatisfechos');
 END
+
 GO
 CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSINSCRIPCIONESCURSO
 AS
 BEGIN
     SET NOCOUNT ON;
-    
     INSERT INTO LOS_GDDES.BI_HechosInscripcionesCurso (id_tiempo, id_categoriaCurso, id_turnoCurso, id_sede, inscriptos, rechazados)
     SELECT 
         t.id AS id_tiempo,
@@ -308,7 +340,7 @@ BEGIN
         bt.id AS id_turnoCurso,
         bs.id AS id_sede,
         COUNT(*) AS inscriptos,
-        SUM(CASE WHEN e.nombre = 'Rechazado' THEN 1 ELSE 0 END) AS rechazados
+        SUM(CASE WHEN e.nombre = 'Rechazada' THEN 1 ELSE 0 END) AS rechazados
     FROM LOS_GDDES.Inscripcion_Curso ic
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = ic.id_curso
     INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
@@ -322,12 +354,12 @@ BEGIN
     WHERE ic.fecha_inscripcion IS NOT NULL
     GROUP BY t.id, bc.id, bt.id, bs.id;
 END
+
 GO
 CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSCURSADAS
 AS
 BEGIN
     SET NOCOUNT ON;
-    
     INSERT INTO LOS_GDDES.BI_HechosCursadas (
         id_tiempo, id_sede, id_categoriaCurso, id_turnoCurso, 
         id_rangoAlumno, id_rangoProfesor, id_satisfaccion,
@@ -367,7 +399,8 @@ BEGIN
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = ic.id_curso
     INNER JOIN LOS_GDDES.Alumno a ON a.legajo = ic.id_alumno
     INNER JOIN LOS_GDDES.Persona pa ON pa.id = a.id_persona
-    INNER JOIN LOS_GDDES.Persona pp ON pp.id = c.id_profesor
+    INNER JOIN LOS_GDDES.Profesor pro ON pro.id = c.id_profesor
+    INNER JOIN LOS_GDDES.Persona pp ON pp.id = pro.id_persona
     INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
     INNER JOIN LOS_GDDES.Turno tur ON tur.id = c.id_turno
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
@@ -375,11 +408,12 @@ BEGIN
     INNER JOIN LOS_GDDES.Evaluacion_Final ef ON ef.id_final = f.id AND ef.id_alumno = a.legajo AND ef.presente = 1
     LEFT JOIN (
         SELECT 
-            en.id_curso,
-            AVG(CAST(dxp.respuesta AS DECIMAL(5,2))) AS promedio_satisfaccion
-        FROM LOS_GDDES.Encuesta en
-        INNER JOIN LOS_GDDES.Detalle_x_Pregunta dxp ON dxp.id_encuesta = en.id
-        GROUP BY en.id_curso
+            mc.id_curso,
+            ROUND(AVG(CAST(ea.nota AS DECIMAL(5,2))), 0) AS promedio_satisfaccion
+        FROM LOS_GDDES.Evaluacion_Alumno ea
+        INNER JOIN LOS_GDDES.Evaluacion ev ON ev.id = ea.id_evaluacion
+        INNER JOIN LOS_GDDES.Modulo_Curso mc ON mc.id = ev.id_modulo_curso
+        GROUP BY mc.id_curso
     ) AS sat ON sat.id_curso = c.codigo_curso
     INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(c.fecha_inicio) AND t.mes = MONTH(c.fecha_inicio)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
@@ -405,9 +439,10 @@ BEGIN
             WHEN sat.promedio_satisfaccion >= 1 THEN 'Insatisfechos'
             ELSE 'Neutrales'
         END
-    WHERE ic.fecha_inscripcion IS NOT NULL;
+    WHERE ic.fecha_inscripcion IS NOT NULL ORDER BY sat.promedio_satisfaccion ASC;
 END
 GO
+
 CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSINSCRIPCIONESFINAL
 AS
 BEGIN
@@ -517,50 +552,6 @@ GO
 
 
 ------------------------------------------ Creacion Vistas ---------------------------------------------------
-
--- Drop existing BI views if they exist
-IF OBJECT_ID('LOS_GDDES.BI_HechosFacturacion', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_CategoriasTurnosMasSolicitados;
-IF
-OBJECT_ID('LOS_GDDES.BI_HechosPagos', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_TasaRechazoInscripciones;
-IF
-OBJECT_ID('LOS_GDDES.BI_HechosInscripcionesFinal', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_DesempenoCursadaPorSede;
-IF
-OBJECT_ID('LOS_GDDES.BI_HechosCursadas', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_DesempenoCursadaPorSede;
-IF
-OBJECT_ID('LOS_GDDES.BI_HechosInscripcionesCurso', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_TiempoPromedioFinalizacion;
-
-IF
-OBJECT_ID('LOS_GDDES.BI_BloqueSatisfaccion', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_NotaPromedioFinales;
-IF
-OBJECT_ID('LOS_GDDES.BI_MetodoDePago', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_TasaAusentismoFinales;
-IF
-OBJECT_ID('LOS_GDDES.BI_CategoriaCurso', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_DesvioPagos;
-IF
-OBJECT_ID('LOS_GDDES.BI_TurnoCurso', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_TasaMorosidadMensual;
-IF
-OBJECT_ID('LOS_GDDES.BI_RangoEtarioProfesor', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_IngresosPorCategoria;
-IF
-OBJECT_ID('LOS_GDDES.BI_RangoEtarioAlumno', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.VW_IndiceSatisfaccion;
-IF
-OBJECT_ID('LOS_GDDES.BI_Sede', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.BI_Sede;
-IF
-OBJECT_ID('LOS_GDDES.BI_Tiempo', 'V') IS NOT NULL
-DROP VIEW LOS_GDDES.BI_Tiempo;
-GO
-
---------------------------------------- Dimension Views --------------------------------------------------
 
 
 /*
@@ -731,6 +722,4 @@ FROM LOS_GDDES.BI_HechosCursadas h
          JOIN LOS_GDDES.BI_BloqueSatisfaccion b ON h.id_satisfaccion = b.id
 GROUP BY t.anio, s.detalle, r.detalle
 GO
-
---------------------------------------- Views Created Successfully --------------------------------------------------
 
