@@ -79,7 +79,7 @@ mes INTEGER,
 cuatrimestre VARCHAR(255),
 semestre VARCHAR(255),
 
-CONSTRAINT PK_BI_Tiempo PRIMARY KEY (id),
+CONSTRAINT PK_BI_Tiempo PRIMARY KEY (id)
 )
 
 CREATE TABLE LOS_GDDES.BI_Sede(
@@ -145,7 +145,7 @@ CREATE TABLE LOS_GDDES.BI_HechosInscripcionesCurso (
     CONSTRAINT FK_BI_HechosInscripciones_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
     CONSTRAINT FK_BI_HechosInscripciones_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
     CONSTRAINT FK_BI_HechosInscripciones_Turno FOREIGN KEY (id_turnoCurso) REFERENCES LOS_GDDES.BI_TurnoCurso(id),
-    CONSTRAINT FK_BI_HechosInscripciones_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
+    CONSTRAINT FK_BI_HechosInscripciones_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id)
 )
 
 CREATE TABLE LOS_GDDES.BI_HechosCursadas (
@@ -181,7 +181,7 @@ CREATE TABLE LOS_GDDES.BI_HechosInscripcionesFinal (
 
     CONSTRAINT PK_BI_HechosInscripcionesFinal PRIMARY KEY (id),
     CONSTRAINT FK_BI_HechosInscripcionesFinal_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
-    CONSTRAINT FK_BI_HechosInscripcionesFinal_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
+    CONSTRAINT FK_BI_HechosInscripcionesFinal_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id)
 )
 
 CREATE TABLE LOS_GDDES.BI_HechosPagos (
@@ -189,6 +189,7 @@ CREATE TABLE LOS_GDDES.BI_HechosPagos (
     id_tiempo BIGINT,
     id_sede BIGINT,
     id_categoriaCurso BIGINT,
+    id_metodoDePago BIGINT,
     fecha_pago smalldatetime,
     fecha_vencimiento smalldatetime,
     monto_pago DECIMAL(12,2),
@@ -197,7 +198,8 @@ CREATE TABLE LOS_GDDES.BI_HechosPagos (
     CONSTRAINT PK_BI_HechosPagos PRIMARY KEY (id),
     CONSTRAINT FK_BI_HechosPagos_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
     CONSTRAINT FK_BI_HechosPagos_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
-    CONSTRAINT FK_BI_HechosPagos_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id)
+    CONSTRAINT FK_BI_HechosPagos_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
+    CONSTRAINT FK_BI_HechosPagos_MetodoDePago FOREIGN KEY (id_metodoDePago) REFERENCES LOS_GDDES.BI_MetodoDePago(id)
 )
 
 CREATE TABLE LOS_GDDES.BI_HechosFacturacion (
@@ -470,11 +472,12 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_HechosPagos (id_tiempo, id_sede, id_categoriaCurso, fecha_pago, fecha_vencimiento, monto_pago, pago_fuera_termino)
+    INSERT INTO LOS_GDDES.BI_HechosPagos (id_tiempo, id_sede, id_categoriaCurso, id_metodoDePago, fecha_pago, fecha_vencimiento, monto_pago, pago_fuera_termino)
     SELECT 
         t.id AS id_tiempo,
         bs.id AS id_sede,
         bc.id AS id_categoriaCurso,
+        bmp.id AS id_metodoDePago,
         p.fecha_pago,
         f.fecha_vencimiento,
         p.importe AS monto_pago,
@@ -486,9 +489,12 @@ BEGIN
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = df.id_curso
     INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
+    INNER JOIN LOS_GDDES.MetodoDePago mp
+        ON mp.id = p.id_metodoDePago
     INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(p.fecha_pago) AND t.mes = MONTH(p.fecha_pago)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
+    INNER JOIN LOS_GDDES.BI_MetodoDePago bmp ON bmp.detalle = mp.descripcion 
     WHERE p.fecha_pago IS NOT NULL;
 END
 GO
@@ -558,20 +564,34 @@ GO
 Categorías y turnos más solicitados.
 Las 3 categorías de cursos y turnos con mayor cantidad de inscriptos por año por sede.
 */
-CREATE VIEW LOS_GDDES.VW_CategoriasTurnosMasSolicitados AS
-SELECT TOP 3
-    t.anio, s.detalle AS sede,
-       c.detalle         AS categoria,
-       tr.detalle        AS turno,
-       SUM(h.inscriptos) AS total_inscriptos
-FROM LOS_GDDES.BI_HechosInscripcionesCurso h
-         JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
-         JOIN LOS_GDDES.BI_CategoriaCurso c ON h.id_categoriaCurso = c.id
-         JOIN LOS_GDDES.BI_TurnoCurso tr ON h.id_turnoCurso = tr.id
-GROUP BY t.anio, s.detalle, c.detalle, tr.detalle
-ORDER BY SUM(h.inscriptos) DESC
+CREATE OR ALTER VIEW LOS_GDDES.VW_CategoriasTurnosMasSolicitados AS
+SELECT
+    sub.anio,
+    sub.sede,
+    sub.categoria,
+    sub.turno,
+    sub.total_inscriptos
+FROM (
+    SELECT
+        t.anio,
+        s.detalle AS sede,
+        c.detalle AS categoria,
+        tr.detalle AS turno,
+        SUM(h.inscriptos) AS total_inscriptos,
+        ROW_NUMBER() OVER (
+            PARTITION BY t.anio, s.detalle
+            ORDER BY SUM(h.inscriptos) DESC
+        ) AS rn
+    FROM LOS_GDDES.BI_HechosInscripcionesCurso h
+    JOIN LOS_GDDES.BI_Tiempo t          ON h.id_tiempo       = t.id
+    JOIN LOS_GDDES.BI_Sede s            ON h.id_sede         = s.id
+    JOIN LOS_GDDES.BI_CategoriaCurso c  ON h.id_categoriaCurso = c.id
+    JOIN LOS_GDDES.BI_TurnoCurso tr     ON h.id_turnoCurso   = tr.id
+    GROUP BY t.anio, s.detalle, c.detalle, tr.detalle
+) sub
+WHERE sub.rn <= 3;
 GO
+
 
 /*
 Tasa de rechazo de inscripciones:
@@ -609,11 +629,13 @@ Tiempo promedio entre el inicio del curso y la aprobación del final según la c
 por año. (Tener en cuenta el año de inicio del curso) TODO: Agregar carga del campo fecha_inicio y fecha_finalizacion en la migracion de los datos
 */
 CREATE VIEW LOS_GDDES.VW_TiempoPromedioFinalizacion AS
-SELECT c.detalle                                                AS categoria,
+SELECT t.anio,
+       c.detalle                                                AS categoria,
        AVG(DATEDIFF(day, h.fecha_inicio, h.fecha_finalizacion)) AS dias_promedio
 FROM LOS_GDDES.BI_HechosCursadas h
          JOIN LOS_GDDES.BI_CategoriaCurso c ON h.id_categoriaCurso = c.id
-GROUP BY c.detalle
+         JOIN LOS_GDDES.BI_Tiempo         t ON h.id_tiempo         = t.id
+GROUP BY t.anio, c.detalle
 GO
 
 /*
@@ -667,28 +689,40 @@ Se calcula teniendo en cuenta el total de importes adeudados sobre facturación 
 El monto adeudado se obtiene a partir de las facturas que no tengan pago registrado en dicho mes.
 */
 CREATE VIEW LOS_GDDES.VW_TasaMorosidadMensual AS
-SELECT t.mes,
+SELECT t.anio,
+       t.mes,
        (SUM(f.monto_facturado - f.monto_pagado) * 1.0 / NULLIF(SUM(f.monto_facturado), 0)) * 100 AS tasa_morosidad
 FROM LOS_GDDES.BI_HechosFacturacion f
          JOIN LOS_GDDES.BI_Tiempo t ON f.id_tiempo = t.id
-GROUP BY t.mes
+GROUP BY t.anio, t.mes
 GO
 
 /*
 Ingresos por categoría de cursos: Las 3 categorías de cursos que generan mayores ingresos por sede, por año.
 */
-CREATE VIEW LOS_GDDES.VW_IngresosPorCategoria AS
-SELECT TOP 3
+CREATE OR ALTER VIEW LOS_GDDES.VW_IngresosPorCategoria AS
+SELECT 
+    sub.anio,
+    sub.sede,
+    sub.categoria,
+    sub.ingresos
+FROM (
+    SELECT
         t.anio,
-        s.detalle           AS sede,
-        c.detalle           AS categoria,
-        SUM(f.monto_pagado) AS ingresos
-FROM LOS_GDDES.BI_HechosFacturacion f
-         JOIN LOS_GDDES.BI_Tiempo t ON f.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_Sede s ON f.id_sede = s.id
-         JOIN LOS_GDDES.BI_CategoriaCurso c ON f.id_categoriaCurso = c.id
-GROUP BY t.anio, s.detalle, c.detalle
-ORDER BY SUM(f.monto_pagado) DESC
+        s.detalle AS sede,
+        c.detalle AS categoria,
+        SUM(f.monto_pagado) AS ingresos,
+        ROW_NUMBER() OVER (
+            PARTITION BY t.anio, s.detalle
+            ORDER BY SUM(f.monto_pagado) DESC
+        ) AS rn
+    FROM LOS_GDDES.BI_HechosFacturacion f
+    JOIN LOS_GDDES.BI_Tiempo t ON f.id_tiempo = t.id
+    JOIN LOS_GDDES.BI_Sede s ON f.id_sede = s.id
+    JOIN LOS_GDDES.BI_CategoriaCurso c ON f.id_categoriaCurso = c.id
+    GROUP BY t.anio, s.detalle, c.detalle
+) sub
+WHERE sub.rn <= 3;
 GO
 
 /*
@@ -709,9 +743,9 @@ SELECT
     r.detalle    AS rango_profesor,
 
     (
-        (SUM(CASE WHEN b.detalle = 'Satisfecho' THEN 1 ELSE 0 END) * 1.0 / COUNT(*) * 100)
+        (SUM(CASE WHEN b.detalle = 'Satisfechos' THEN 1 ELSE 0 END) * 1.0 / COUNT(*) * 100)
             -
-        (SUM(CASE WHEN b.detalle = 'Insatisfecho' THEN 1 ELSE 0 END) * 1.0 / COUNT(*) * 100)
+        (SUM(CASE WHEN b.detalle = 'Insatisfechos' THEN 1 ELSE 0 END) * 1.0 / COUNT(*) * 100)
             + 100
     ) / 2       AS indice_satisfaccion
 
