@@ -1,6 +1,8 @@
 USE GD2C2025
 GO
 
+Select * From LOS_GDDES.BI_HechosPagos
+
 IF OBJECT_ID('LOS_GDDES.BI_HechosFacturacion', 'U') IS NOT NULL
     DROP TABLE LOS_GDDES.BI_HechosFacturacion;
 
@@ -216,7 +218,6 @@ CREATE TABLE LOS_GDDES.BI_HechosFacturacion (
     CONSTRAINT FK_BI_HechosFacturacion_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id)
 )
 GO
-
 
 ------------------------------------------ Migracion Tablas ---------------------------------------------------
 

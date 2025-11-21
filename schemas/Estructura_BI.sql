@@ -158,6 +158,7 @@ CREATE TABLE LOS_GDDES.BI_HechosPagos (
     id_tiempo BIGINT,
     id_sede BIGINT,
     id_categoriaCurso BIGINT,
+    id_metodoPago BIGINT,
     fecha_pago smalldatetime,
     fecha_vencimiento smalldatetime,
     monto_pago DECIMAL(12,2),
@@ -166,7 +167,8 @@ CREATE TABLE LOS_GDDES.BI_HechosPagos (
     CONSTRAINT PK_BI_HechosPagos PRIMARY KEY (id),
     CONSTRAINT FK_BI_HechosPagos_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
     CONSTRAINT FK_BI_HechosPagos_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
-    CONSTRAINT FK_BI_HechosPagos_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id)
+    CONSTRAINT FK_BI_HechosPagos_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
+    CONSTRAINT FK_BI_HechosPagos_MetodoPago FOREIGN KEY (id_metodoPago) REFERENCES LOS_GDDES.BI_MetodoDePago(id)
 )
 
 CREATE TABLE LOS_GDDES.BI_HechosFacturacion (
