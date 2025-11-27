@@ -1,8 +1,6 @@
 USE GD2C2025
 GO
 
-Select * From LOS_GDDES.BI_HechosPagos
-
 IF OBJECT_ID('LOS_GDDES.BI_HechosFacturacion', 'U') IS NOT NULL
     DROP TABLE LOS_GDDES.BI_HechosFacturacion;
 
@@ -192,10 +190,9 @@ CREATE TABLE LOS_GDDES.BI_HechosPagos (
     id_sede BIGINT,
     id_categoriaCurso BIGINT,
     id_metodoDePago BIGINT,
-    fecha_pago smalldatetime,
-    fecha_vencimiento smalldatetime,
-    monto_pago DECIMAL(12,2),
-    pago_fuera_termino BIT,
+    monto_total_pagado DECIMAL(12,2),
+    cantidad_pagos INT,
+    cantidad_pagos_fuera_termino INT,
 
     CONSTRAINT PK_BI_HechosPagos PRIMARY KEY (id),
     CONSTRAINT FK_BI_HechosPagos_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
@@ -473,16 +470,15 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_HechosPagos (id_tiempo, id_sede, id_categoriaCurso, id_metodoDePago, fecha_pago, fecha_vencimiento, monto_pago, pago_fuera_termino)
+    INSERT INTO LOS_GDDES.BI_HechosPagos (id_tiempo, id_sede, id_categoriaCurso, id_metodoDePago, monto_total_pagado, cantidad_pagos, cantidad_pagos_fuera_termino)
     SELECT 
         t.id AS id_tiempo,
         bs.id AS id_sede,
         bc.id AS id_categoriaCurso,
         bmp.id AS id_metodoDePago,
-        p.fecha_pago,
-        f.fecha_vencimiento,
-        p.importe AS monto_pago,
-        CASE WHEN p.fecha_pago > f.fecha_vencimiento THEN 1 ELSE 0 END AS pago_fuera_termino
+        SUM(p.importe) AS monto_total_pagado,
+        COUNT(*) AS cantidad_pagos,
+        SUM(CASE WHEN p.fecha_pago > f.fecha_vencimiento THEN 1 ELSE 0 END) AS cantidad_pagos_fuera_termino
     FROM LOS_GDDES.Pago p
     INNER JOIN LOS_GDDES.Factura f ON f.numero_factura = p.nro_factura
     INNER JOIN LOS_GDDES.Alumno a ON a.legajo = f.legajo_alumno
@@ -496,7 +492,8 @@ BEGIN
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
     INNER JOIN LOS_GDDES.BI_MetodoDePago bmp ON bmp.detalle = mp.descripcion 
-    WHERE p.fecha_pago IS NOT NULL;
+    WHERE p.fecha_pago IS NOT NULL
+    GROUP BY t.id, bs.id, bc.id, bmp.id;
 END
 GO
 CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSFACTURACION
