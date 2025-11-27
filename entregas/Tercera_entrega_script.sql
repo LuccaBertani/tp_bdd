@@ -7,6 +7,9 @@ IF OBJECT_ID('LOS_GDDES.BI_HechosFacturacion', 'U') IS NOT NULL
 IF OBJECT_ID('LOS_GDDES.BI_HechosPagos', 'U') IS NOT NULL
     DROP TABLE LOS_GDDES.BI_HechosPagos;
 
+IF OBJECT_ID('LOS_GDDES.BI_HechosSatisfaccion', 'U') IS NOT NULL
+    DROP TABLE LOS_GDDES.BI_HechosSatisfaccion;
+
 IF OBJECT_ID('LOS_GDDES.BI_HechosInscripcionesFinal', 'U') IS NOT NULL
     DROP TABLE LOS_GDDES.BI_HechosInscripcionesFinal;
 
@@ -156,11 +159,8 @@ CREATE TABLE LOS_GDDES.BI_HechosCursadas (
     id_turnoCurso BIGINT,
     id_rangoAlumno BIGINT,
     id_rangoProfesor BIGINT,
-    id_satisfaccion BIGINT,
-    fecha_inicio smalldatetime,
-    fecha_finalizacion smalldatetime,
-    aprobado BIT,               
-    nota_final DECIMAL(5,2),   
+    cantidad_cursadas INT,
+    cantidad_cursadas_completadas INT,
 
     CONSTRAINT PK_BI_HechosCursadas PRIMARY KEY (id),
     CONSTRAINT FK_BI_HechosCursadas_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
@@ -168,9 +168,27 @@ CREATE TABLE LOS_GDDES.BI_HechosCursadas (
     CONSTRAINT FK_BI_HechosCursadas_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
     CONSTRAINT FK_BI_HechosCursadas_Turno FOREIGN KEY (id_turnoCurso) REFERENCES LOS_GDDES.BI_TurnoCurso(id),
     CONSTRAINT FK_BI_HechosCursadas_RangoEtarioAlumno FOREIGN KEY (id_rangoAlumno) REFERENCES LOS_GDDES.BI_RangoEtarioAlumno(id),
-    CONSTRAINT FK_BI_HechosCursadas_RangoEtarioProfesor FOREIGN KEY (id_rangoProfesor) REFERENCES LOS_GDDES.BI_RangoEtarioProfesor(id),
-    CONSTRAINT FK_BI_HechosCursadas_BloqueSatisfaccion FOREIGN KEY (id_satisfaccion) REFERENCES LOS_GDDES.BI_BloqueSatisfaccion (id)
+    CONSTRAINT FK_BI_HechosCursadas_RangoEtarioProfesor FOREIGN KEY (id_rangoProfesor) REFERENCES LOS_GDDES.BI_RangoEtarioProfesor(id)
 )
+
+CREATE TABLE LOS_GDDES.BI_HechosSatisfaccion (
+    id BIGINT IDENTITY(1,1),
+    id_tiempo BIGINT,
+    id_sede BIGINT,
+    id_categoriaCurso BIGINT,
+    id_rangoProfesor BIGINT,
+    id_bloqueSatisfaccion BIGINT,
+    cantidad_evaluaciones INT,
+    promedio_satisfaccion DECIMAL(5,2),
+
+    CONSTRAINT PK_BI_HechosSatisfaccion PRIMARY KEY (id),
+    CONSTRAINT FK_BI_HechosSatisfaccion_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
+    CONSTRAINT FK_BI_HechosSatisfaccion_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
+    CONSTRAINT FK_BI_HechosSatisfaccion_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
+    CONSTRAINT FK_BI_HechosSatisfaccion_RangoProfesor FOREIGN KEY (id_rangoProfesor) REFERENCES LOS_GDDES.BI_RangoEtarioProfesor(id),
+    CONSTRAINT FK_BI_HechosSatisfaccion_BloqueSatisfaccion FOREIGN KEY (id_bloqueSatisfaccion) REFERENCES LOS_GDDES.BI_BloqueSatisfaccion(id)
+)
+GO
 
 CREATE TABLE LOS_GDDES.BI_HechosInscripcionesFinal (
     id BIGINT IDENTITY(1,1),
@@ -360,10 +378,10 @@ CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSCURSADAS
 AS
 BEGIN
     SET NOCOUNT ON;
+    
     INSERT INTO LOS_GDDES.BI_HechosCursadas (
         id_tiempo, id_sede, id_categoriaCurso, id_turnoCurso, 
-        id_rangoAlumno, id_rangoProfesor, id_satisfaccion,
-        fecha_inicio, fecha_finalizacion, aprobado, nota_final
+        id_rangoAlumno, id_rangoProfesor, cantidad_cursadas, cantidad_cursadas_completadas
     )
     SELECT 
         t.id AS id_tiempo,
@@ -372,29 +390,14 @@ BEGIN
         bt.id AS id_turnoCurso,
         bra.id AS id_rangoAlumno,
         brp.id AS id_rangoProfesor,
-        bsat.id AS id_satisfaccion,
-        c.fecha_inicio,
-        f.fecha AS fecha_finalizacion,
-        CASE 
-            WHEN ef.nota >= 4 
-                AND NOT EXISTS (
-                    SELECT 1 FROM LOS_GDDES.Evaluacion_Alumno ea
-                    INNER JOIN LOS_GDDES.Evaluacion ev ON ev.id = ea.id_evaluacion
-                    INNER JOIN LOS_GDDES.Modulo_Curso mc ON mc.id = ev.id_modulo_curso
-                    WHERE mc.id_curso = c.codigo_curso 
-                    AND ea.id_alumno = a.legajo
-                    AND ea.nota < 4
-                )
-                AND NOT EXISTS (
-                    SELECT 1 FROM LOS_GDDES.TP tp
-                    WHERE tp.id_curso = c.codigo_curso 
-                    AND tp.id_alumno = a.legajo
-                    AND tp.nota < 4
-                )
-            THEN 1
-            ELSE 0
-        END AS aprobado,
-        ef.nota AS nota_final
+        COUNT(*) AS cantidad_cursadas,
+        SUM(CASE WHEN EXISTS (
+            SELECT 1 FROM LOS_GDDES.Final f
+            INNER JOIN LOS_GDDES.Evaluacion_Final ef ON ef.id_final = f.id 
+            WHERE f.id_curso = c.codigo_curso 
+            AND ef.id_alumno = a.legajo 
+            AND ef.presente = 1
+        ) THEN 1 ELSE 0 END) AS cantidad_cursadas_completadas
     FROM LOS_GDDES.Inscripcion_Curso ic
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = ic.id_curso
     INNER JOIN LOS_GDDES.Alumno a ON a.legajo = ic.id_alumno
@@ -404,18 +407,7 @@ BEGIN
     INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
     INNER JOIN LOS_GDDES.Turno tur ON tur.id = c.id_turno
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
-    INNER JOIN LOS_GDDES.Final f ON f.id_curso = c.codigo_curso
-    INNER JOIN LOS_GDDES.Evaluacion_Final ef ON ef.id_final = f.id AND ef.id_alumno = a.legajo AND ef.presente = 1
-    LEFT JOIN (
-        SELECT 
-            mc.id_curso,
-            ROUND(AVG(CAST(ea.nota AS DECIMAL(5,2))), 0) AS promedio_satisfaccion
-        FROM LOS_GDDES.Evaluacion_Alumno ea
-        INNER JOIN LOS_GDDES.Evaluacion ev ON ev.id = ea.id_evaluacion
-        INNER JOIN LOS_GDDES.Modulo_Curso mc ON mc.id = ev.id_modulo_curso
-        GROUP BY mc.id_curso
-    ) AS sat ON sat.id_curso = c.codigo_curso
-    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(c.fecha_inicio) AND t.mes = MONTH(c.fecha_inicio)
+    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(ic.fecha_inscripcion) AND t.mes = MONTH(ic.fecha_inscripcion)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_TurnoCurso bt ON bt.detalle = tur.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
@@ -432,14 +424,8 @@ BEGIN
             WHEN DATEDIFF(YEAR, pp.fecha_nacimiento, GETDATE()) BETWEEN 36 AND 50 THEN '35 - 50'
             ELSE '> 50'
         END
-    LEFT JOIN LOS_GDDES.BI_BloqueSatisfaccion bsat ON bsat.detalle = 
-        CASE 
-            WHEN sat.promedio_satisfaccion >= 7 THEN 'Satisfechos'
-            WHEN sat.promedio_satisfaccion >= 5 THEN 'Neutrales'
-            WHEN sat.promedio_satisfaccion >= 1 THEN 'Insatisfechos'
-            ELSE 'Neutrales'
-        END
-    WHERE ic.fecha_inscripcion IS NOT NULL ORDER BY sat.promedio_satisfaccion ASC;
+    WHERE ic.fecha_inscripcion IS NOT NULL
+    GROUP BY t.id, bs.id, bc.id, bt.id, bra.id, brp.id;
 END
 GO
 
@@ -522,6 +508,52 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSSATISFACCION
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO LOS_GDDES.BI_HechosSatisfaccion (
+        id_tiempo, id_sede, id_categoriaCurso, id_rangoProfesor, id_bloqueSatisfaccion,
+        cantidad_evaluaciones, promedio_satisfaccion
+    )
+    SELECT 
+        t.id AS id_tiempo,
+        bs.id AS id_sede,
+        bc.id AS id_categoriaCurso,
+        brp.id AS id_rangoProfesor,
+        bsat.id AS id_bloqueSatisfaccion,
+        COUNT(*) AS cantidad_evaluaciones,
+        AVG(CAST(ea.nota AS DECIMAL(5,2))) AS promedio_satisfaccion
+    FROM LOS_GDDES.Evaluacion_Alumno ea
+    INNER JOIN LOS_GDDES.Evaluacion ev ON ev.id = ea.id_evaluacion
+    INNER JOIN LOS_GDDES.Modulo_Curso mc ON mc.id = ev.id_modulo_curso
+    INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = mc.id_curso
+    INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
+    INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
+    INNER JOIN LOS_GDDES.Profesor pro ON pro.id = c.id_profesor
+    INNER JOIN LOS_GDDES.Persona pp ON pp.id = pro.id_persona
+    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(ev.fecha) AND t.mes = MONTH(ev.fecha)
+    INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
+    INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
+    INNER JOIN LOS_GDDES.BI_RangoEtarioProfesor brp ON brp.detalle = 
+        CASE 
+            WHEN DATEDIFF(YEAR, pp.fecha_nacimiento, GETDATE()) BETWEEN 25 AND 35 THEN '25 - 35'
+            WHEN DATEDIFF(YEAR, pp.fecha_nacimiento, GETDATE()) BETWEEN 36 AND 50 THEN '35 - 50'
+            ELSE '> 50'
+        END
+    INNER JOIN LOS_GDDES.BI_BloqueSatisfaccion bsat ON bsat.detalle = 
+        CASE 
+            WHEN ea.nota >= 7 THEN 'Satisfechos'
+            WHEN ea.nota >= 5 THEN 'Neutrales'
+            WHEN ea.nota >= 1 THEN 'Insatisfechos'
+            ELSE 'Neutrales'
+        END
+    WHERE ev.fecha IS NOT NULL AND ea.nota IS NOT NULL
+    GROUP BY t.id, bs.id, bc.id, brp.id, bsat.id;
+END
+GO
+
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
@@ -542,6 +574,7 @@ BEGIN TRY
     EXEC LOS_GDDES.SP_POBLAR_BI_HECHOSINSCRIPCIONESFINAL;
     EXEC LOS_GDDES.SP_POBLAR_BI_HECHOSPAGOS;
     EXEC LOS_GDDES.SP_POBLAR_BI_HECHOSFACTURACION;
+    EXEC LOS_GDDES.SP_POBLAR_BI_HECHOSSATISFACCION;
     
     COMMIT TRANSACTION PoblarBI;
 END TRY
@@ -741,17 +774,17 @@ SELECT
     r.detalle    AS rango_profesor,
 
     (
-        (SUM(CASE WHEN b.detalle = 'Satisfechos' THEN 1 ELSE 0 END) * 1.0 / COUNT(*) * 100)
+        (SUM(CASE WHEN b.detalle = 'Satisfechos' THEN h.cantidad_evaluaciones ELSE 0 END) * 1.0 / SUM(h.cantidad_evaluaciones) * 100)
             -
-        (SUM(CASE WHEN b.detalle = 'Insatisfechos' THEN 1 ELSE 0 END) * 1.0 / COUNT(*) * 100)
+        (SUM(CASE WHEN b.detalle = 'Insatisfechos' THEN h.cantidad_evaluaciones ELSE 0 END) * 1.0 / SUM(h.cantidad_evaluaciones) * 100)
             + 100
     ) / 2       AS indice_satisfaccion
 
-FROM LOS_GDDES.BI_HechosCursadas h
+FROM LOS_GDDES.BI_HechosSatisfaccion h
          JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
          JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
          JOIN LOS_GDDES.BI_RangoEtarioProfesor r ON h.id_rangoProfesor = r.id
-         JOIN LOS_GDDES.BI_BloqueSatisfaccion b ON h.id_satisfaccion = b.id
+         JOIN LOS_GDDES.BI_BloqueSatisfaccion b ON h.id_bloqueSatisfaccion = b.id
 GROUP BY t.anio, s.detalle, r.detalle
 GO
 

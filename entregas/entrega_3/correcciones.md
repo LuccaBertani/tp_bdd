@@ -13,8 +13,9 @@ La información para el modelo de BI debe estar agrupada y pre calculada
 en función de las dimensiones correspondientes.
 
 ### No es correcta la tabla de hechos de Cursada.
-La información debe estar agrupada y pre calculada en función de las dimensiones
+- La información debe estar agrupada y pre calculada en función de las dimensiones
 correspondientes. La fecha de inicio y de fin no son campos pre
-calculados o agrupados. La información de satisfacción corresponde a
-las encuestas y puede estar separada en otra tabla de hechos. La
-información de finales corresponde al hecho de final.
+calculados o agrupados. 
+- La información de satisfacción corresponde a
+las encuestas y puede estar separada en otra tabla de hechos. 
+- La información de finales corresponde al hecho de final.
