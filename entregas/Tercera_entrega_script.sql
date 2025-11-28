@@ -391,13 +391,7 @@ BEGIN
         bra.id AS id_rangoAlumno,
         brp.id AS id_rangoProfesor,
         COUNT(*) AS cantidad_cursadas,
-        SUM(CASE WHEN EXISTS (
-            SELECT 1 FROM LOS_GDDES.Final f
-            INNER JOIN LOS_GDDES.Evaluacion_Final ef ON ef.id_final = f.id 
-            WHERE f.id_curso = c.codigo_curso 
-            AND ef.id_alumno = a.legajo 
-            AND ef.presente = 1
-        ) THEN 1 ELSE 0 END) AS cantidad_cursadas_completadas
+        SUM(CASE WHEN ef.id_curso IS NOT NULL THEN 1 ELSE 0 END) AS cantidad_cursadas_completadas
     FROM LOS_GDDES.Inscripcion_Curso ic
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = ic.id_curso
     INNER JOIN LOS_GDDES.Alumno a ON a.legajo = ic.id_alumno
@@ -407,6 +401,12 @@ BEGIN
     INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
     INNER JOIN LOS_GDDES.Turno tur ON tur.id = c.id_turno
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
+    LEFT JOIN (
+        SELECT DISTINCT f.id_curso, ef_inner.id_alumno
+        FROM LOS_GDDES.Final f
+        INNER JOIN LOS_GDDES.Evaluacion_Final ef_inner ON ef_inner.id_final = f.id 
+        WHERE ef_inner.presente = 1
+    ) ef ON ef.id_curso = c.codigo_curso AND ef.id_alumno = a.legajo
     INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(ic.fecha_inscripcion) AND t.mes = MONTH(ic.fecha_inscripcion)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_TurnoCurso bt ON bt.detalle = tur.nombre
@@ -641,49 +641,124 @@ GO
 /*
 Comparación de desempeño de cursada por sede:
 Porcentaje de aprobación de cursada por sede, por año.
-Se considera aprobada la cursada de un alumno cuando tiene nota mayor o igual a 4 en todos los módulos y el TP. TODO: Agregar esta validacion en la migracion de los datos
+Se considera aprobada la cursada de un alumno cuando tiene nota mayor o igual a 4 en todos los módulos y el TP.
 */
 CREATE VIEW LOS_GDDES.VW_DesempenioCursadaPorSede AS
-SELECT t.anio,
-       s.detalle                                                              AS sede,
-       COUNT(*)                                                               AS total_cursadas,
-       SUM(CASE WHEN h.aprobado = 1 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) * 100 AS porcentaje_aprobacion
-FROM LOS_GDDES.BI_HechosCursadas h
-         JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
-GROUP BY t.anio, s.detalle
+WITH CursadasAprobacion AS (
+    SELECT 
+        YEAR(ic.fecha_inscripcion) AS anio,
+        s.nombre AS sede,
+        ic.numero_inscripcion,
+        ic.id_alumno,
+        c.codigo_curso,
+        -- Verificar si tiene evaluaciones de módulo reprobadas
+        CASE WHEN EXISTS (
+            SELECT 1 
+            FROM LOS_GDDES.Evaluacion ev
+            INNER JOIN LOS_GDDES.Modulo_Curso mc ON mc.id = ev.id_modulo_curso
+            INNER JOIN LOS_GDDES.Evaluacion_Alumno ea ON ea.id_evaluacion = ev.id
+            WHERE mc.id_curso = c.codigo_curso 
+            AND ea.id_alumno = ic.id_alumno
+            AND (ea.nota < 4 OR ea.presente = 0)
+        ) THEN 0 ELSE 1 END AS sin_modulos_reprobados,
+        -- Verificar si tiene TP reprobado
+        CASE WHEN EXISTS (
+            SELECT 1
+            FROM LOS_GDDES.TP tp
+            WHERE tp.id_curso = c.codigo_curso
+            AND tp.id_alumno = ic.id_alumno
+            AND tp.nota < 4
+        ) THEN 0 ELSE 1 END AS sin_tp_reprobado,
+        -- Verificar que tenga al menos una evaluación de módulo
+        CASE WHEN EXISTS (
+            SELECT 1
+            FROM LOS_GDDES.Evaluacion ev
+            INNER JOIN LOS_GDDES.Modulo_Curso mc ON mc.id = ev.id_modulo_curso
+            INNER JOIN LOS_GDDES.Evaluacion_Alumno ea ON ea.id_evaluacion = ev.id
+            WHERE mc.id_curso = c.codigo_curso 
+            AND ea.id_alumno = ic.id_alumno
+        ) THEN 1 ELSE 0 END AS tiene_evaluaciones,
+        -- Verificar que tenga TP
+        CASE WHEN EXISTS (
+            SELECT 1
+            FROM LOS_GDDES.TP tp
+            WHERE tp.id_curso = c.codigo_curso
+            AND tp.id_alumno = ic.id_alumno
+        ) THEN 1 ELSE 0 END AS tiene_tp
+    FROM LOS_GDDES.Inscripcion_Curso ic
+    INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = ic.id_curso
+    INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
+    WHERE ic.fecha_inscripcion IS NOT NULL
+)
+SELECT 
+    anio,
+    sede,
+    COUNT(*) AS total_cursadas,
+    SUM(CASE 
+        WHEN sin_modulos_reprobados = 1 
+        AND sin_tp_reprobado = 1 
+        AND tiene_evaluaciones = 1 
+        AND tiene_tp = 1 
+        THEN 1 ELSE 0 
+    END) * 1.0 / NULLIF(COUNT(*), 0) * 100 AS porcentaje_aprobacion
+FROM CursadasAprobacion
+GROUP BY anio, sede
 GO
 
 /*
 Tiempo promedio de finalización de curso:
 Tiempo promedio entre el inicio del curso y la aprobación del final según la categoría de los cursos,
-por año. (Tener en cuenta el año de inicio del curso) TODO: Agregar carga del campo fecha_inicio y fecha_finalizacion en la migracion de los datos
+por año. (Se calcula desde las tablas transaccionales)
 */
 CREATE VIEW LOS_GDDES.VW_TiempoPromedioFinalizacion AS
-SELECT t.anio,
-       c.detalle                                                AS categoria,
-       AVG(DATEDIFF(day, h.fecha_inicio, h.fecha_finalizacion)) AS dias_promedio
-FROM LOS_GDDES.BI_HechosCursadas h
-         JOIN LOS_GDDES.BI_CategoriaCurso c ON h.id_categoriaCurso = c.id
-         JOIN LOS_GDDES.BI_Tiempo         t ON h.id_tiempo         = t.id
-GROUP BY t.anio, c.detalle
+SELECT YEAR(cur.fecha_inicio) AS anio,
+       cat.nombre             AS categoria,
+       AVG(DATEDIFF(day, cur.fecha_inicio, f.fecha)) AS dias_promedio
+FROM LOS_GDDES.Curso cur
+JOIN LOS_GDDES.Categoria cat ON cat.id = cur.id_categoria
+JOIN LOS_GDDES.Final f ON f.id_curso = cur.codigo_curso
+JOIN LOS_GDDES.Evaluacion_Final ef ON ef.id_final = f.id AND ef.presente = 1
+WHERE cur.fecha_inicio IS NOT NULL AND f.fecha IS NOT NULL
+GROUP BY YEAR(cur.fecha_inicio), cat.nombre
 GO
 
 /*
 Nota promedio de finales.
-Promedio de nota de finales según el rango etario del alumno y la categoría del curso por semestre. TODO: Agregar distincion de rango etario del alumno en la migracion de los datos
+Promedio de nota de finales según el rango etario del alumno y la categoría del curso por semestre.
 */
 CREATE VIEW LOS_GDDES.VW_NotaPromedioFinales AS
-SELECT t.semestre,
-       c.detalle         AS categoria,
-       r.detalle         AS rango_etario,
-       AVG(h.nota_final) AS nota_promedio
-FROM LOS_GDDES.BI_HechosCursadas h
-         JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_CategoriaCurso c ON h.id_categoriaCurso = c.id
-         JOIN LOS_GDDES.BI_RangoEtarioAlumno r ON h.id_rangoAlumno = r.id
-WHERE h.nota_final IS NOT NULL
-GROUP BY t.semestre, c.detalle, r.detalle
+SELECT 
+    CASE 
+        WHEN MONTH(f.fecha) IN (1,2,3,4,5,6) THEN 'Primer Semestre'
+        ELSE 'Segundo Semestre'
+    END AS semestre,
+    cat.nombre AS categoria,
+    CASE 
+        WHEN DATEDIFF(YEAR, pa.fecha_nacimiento, f.fecha) < 25 THEN '< 25'
+        WHEN DATEDIFF(YEAR, pa.fecha_nacimiento, f.fecha) BETWEEN 25 AND 35 THEN '25 - 35'
+        WHEN DATEDIFF(YEAR, pa.fecha_nacimiento, f.fecha) BETWEEN 36 AND 50 THEN '35 - 50'
+        ELSE '> 50'
+    END AS rango_etario,
+    AVG(CAST(ef.nota AS DECIMAL(5,2))) AS nota_promedio
+FROM LOS_GDDES.Evaluacion_Final ef
+JOIN LOS_GDDES.Final f ON f.id = ef.id_final
+JOIN LOS_GDDES.Curso cur ON cur.codigo_curso = f.id_curso
+JOIN LOS_GDDES.Categoria cat ON cat.id = cur.id_categoria
+JOIN LOS_GDDES.Alumno a ON a.legajo = ef.id_alumno
+JOIN LOS_GDDES.Persona pa ON pa.id = a.id_persona
+WHERE ef.nota IS NOT NULL AND ef.presente = 1 AND f.fecha IS NOT NULL
+GROUP BY 
+    CASE 
+        WHEN MONTH(f.fecha) IN (1,2,3,4,5,6) THEN 'Primer Semestre'
+        ELSE 'Segundo Semestre'
+    END,
+    cat.nombre,
+    CASE 
+        WHEN DATEDIFF(YEAR, pa.fecha_nacimiento, f.fecha) < 25 THEN '< 25'
+        WHEN DATEDIFF(YEAR, pa.fecha_nacimiento, f.fecha) BETWEEN 25 AND 35 THEN '25 - 35'
+        WHEN DATEDIFF(YEAR, pa.fecha_nacimiento, f.fecha) BETWEEN 36 AND 50 THEN '35 - 50'
+        ELSE '> 50'
+    END
 GO
 
 /*
@@ -701,13 +776,12 @@ GROUP BY t.semestre, s.detalle
 GO
 
 /*
-Desvío de pagos: Porcentaje de pagos realizados fuera de término por semestre. TODO: Cargar el booleano de pago fuera de termino en la migracion de los datos.
+Desvío de pagos: Porcentaje de pagos realizados fuera de término por semestre.
 */
 CREATE VIEW LOS_GDDES.VW_DesvioPagos AS
 SELECT t.semestre,
        s.detalle            AS sede,
-       SUM(CASE WHEN h.pago_fuera_termino = 1 THEN 1 ELSE 0 END) * 1.0
-           / COUNT(*) * 100 AS porcentaje_fuera_termino
+       SUM(h.cantidad_pagos_fuera_termino) * 1.0 / NULLIF(SUM(h.cantidad_pagos), 0) * 100 AS porcentaje_fuera_termino
 FROM LOS_GDDES.BI_HechosPagos h
          JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
          JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
