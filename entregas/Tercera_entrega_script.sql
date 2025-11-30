@@ -835,7 +835,7 @@ GO
 El índice de satisfacción es igual a ((%satisfechos - %insatisfechos) +100)/2.
 Teniendo en cuenta que
 
-Satisfechos: Notas entre 7 y 10     TODO: En la migracion hacer esta validacion
+Satisfechos: Notas entre 7 y 10
 
 Neutrales: Notas entre 5 y 6
 
