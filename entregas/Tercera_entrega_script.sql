@@ -929,3 +929,4 @@ GROUP BY YEAR(ev.fecha), s.nombre,
         ELSE '> 50'
     END
 GO
+
