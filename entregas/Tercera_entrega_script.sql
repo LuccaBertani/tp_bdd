@@ -19,29 +19,30 @@ IF OBJECT_ID('LOS_GDDES.BI_HechosCursadas', 'U') IS NOT NULL
 IF OBJECT_ID('LOS_GDDES.BI_HechosInscripcionesCurso', 'U') IS NOT NULL
     DROP TABLE LOS_GDDES.BI_HechosInscripcionesCurso;
 
-IF OBJECT_ID('LOS_GDDES.BI_BloqueSatisfaccion', 'U') IS NOT NULL
-    DROP TABLE LOS_GDDES.BI_BloqueSatisfaccion;
-
-IF OBJECT_ID('LOS_GDDES.BI_MetodoDePago', 'U') IS NOT NULL
-    DROP TABLE LOS_GDDES.BI_MetodoDePago;
+IF OBJECT_ID('LOS_GDDES.BI_DimBloqueSatisfaccion', 'U') IS NOT NULL
+    DROP TABLE LOS_GDDES.BI_DimBloqueSatisfaccion;
 
 IF OBJECT_ID('LOS_GDDES.BI_CategoriaCurso', 'U') IS NOT NULL
     DROP TABLE LOS_GDDES.BI_CategoriaCurso;
 
-IF OBJECT_ID('LOS_GDDES.BI_TurnoCurso', 'U') IS NOT NULL
-    DROP TABLE LOS_GDDES.BI_TurnoCurso;
+-- Drops de dimensiones
+IF OBJECT_ID('LOS_GDDES.BI_DimMetodoDePago', 'U') IS NOT NULL
+DROP TABLE LOS_GDDES.BI_DimMetodoDePago;
 
-IF OBJECT_ID('LOS_GDDES.BI_RangoEtarioProfesor', 'U') IS NOT NULL
-    DROP TABLE LOS_GDDES.BI_RangoEtarioProfesor;
+IF OBJECT_ID('LOS_GDDES.BI_DimTurnoCurso', 'U') IS NOT NULL
+    DROP TABLE LOS_GDDES.BI_DimTurnoCurso;
 
-IF OBJECT_ID('LOS_GDDES.BI_RangoEtarioAlumno', 'U') IS NOT NULL
-    DROP TABLE LOS_GDDES.BI_RangoEtarioAlumno;
+IF OBJECT_ID('LOS_GDDES.BI_DimRangoEtarioProfesor', 'U') IS NOT NULL
+    DROP TABLE LOS_GDDES.BI_DimRangoEtarioProfesor;
 
-IF OBJECT_ID('LOS_GDDES.BI_Sede', 'U') IS NOT NULL
-    DROP TABLE LOS_GDDES.BI_Sede;
+IF OBJECT_ID('LOS_GDDES.BI_DimRangoEtarioAlumno', 'U') IS NOT NULL
+    DROP TABLE LOS_GDDES.BI_DimRangoEtarioAlumno;
 
-IF OBJECT_ID('LOS_GDDES.BI_Tiempo', 'U') IS NOT NULL
-    DROP TABLE LOS_GDDES.BI_Tiempo;
+IF OBJECT_ID('LOS_GDDES.DimBI_Sede', 'U') IS NOT NULL
+    DROP TABLE LOS_GDDES.BI_DimSede;
+
+IF OBJECT_ID('LOS_GDDES.DimBI_Tiempo', 'U') IS NOT NULL
+    DROP TABLE LOS_GDDES.BI_DimTiempo;
 
 -- Drop vistas si existen
 IF OBJECT_ID('LOS_GDDES.VW_CategoriasTurnosMasSolicitados', 'V') IS NOT NULL
@@ -75,69 +76,71 @@ IF OBJECT_ID('LOS_GDDES.VW_IndiceSatisfaccion', 'V') IS NOT NULL
     DROP VIEW LOS_GDDES.VW_IndiceSatisfaccion;
 GO
 
-CREATE TABLE LOS_GDDES.BI_Tiempo(
+CREATE TABLE LOS_GDDES.BI_DimTiempo
+(
 id BIGINT IDENTITY(1,1),
 anio INTEGER,
 mes INTEGER,
 cuatrimestre VARCHAR(255),
 semestre VARCHAR(255),
 
-CONSTRAINT PK_BI_Tiempo PRIMARY KEY (id)
+CONSTRAINT PK_DimBI_Tiempo PRIMARY KEY (id)
 )
 
-CREATE TABLE LOS_GDDES.BI_Sede(
+CREATE TABLE LOS_GDDES.BI_DimSede(
 id BIGINT IDENTITY(1,1),
 detalle VARCHAR(255),
 
-CONSTRAINT PK_BI_Sede PRIMARY KEY (id)
+CONSTRAINT PK_DimBI_Sede PRIMARY KEY (id)
 )
 
-CREATE TABLE LOS_GDDES.BI_RangoEtarioAlumno (
+CREATE TABLE LOS_GDDES.BI_DimRangoEtarioAlumno (
 id BIGINT IDENTITY(1,1),
 detalle VARCHAR(20),
 
-CONSTRAINT PK_BI_RangoEtarioAlumno PRIMARY KEY (id)
+CONSTRAINT PK_BI_DimRangoEtarioAlumno PRIMARY KEY (id)
 )
 
-CREATE TABLE LOS_GDDES.BI_RangoEtarioProfesor (
+CREATE TABLE LOS_GDDES.BI_DimRangoEtarioProfesor (
 id BIGINT IDENTITY(1,1),
 detalle VARCHAR(20),
 
-CONSTRAINT PK_BI_RangoEtarioProfesor PRIMARY KEY (id)
+CONSTRAINT PK_BI_DimRangoEtarioProfesor PRIMARY KEY (id)
 )
 
-CREATE TABLE LOS_GDDES.BI_TurnoCurso(
+CREATE TABLE LOS_GDDES.BI_DimTurnoCurso(
 id BIGINT IDENTITY(1,1),
 detalle VARCHAR(255),
 
-CONSTRAINT PK_BI_TurnoCurso PRIMARY KEY (id)
+CONSTRAINT PK_BI_DimTurnoCurso PRIMARY KEY (id)
 )
 
-CREATE TABLE LOS_GDDES.BI_CategoriaCurso(
+CREATE TABLE LOS_GDDES.BI_DimCategoriaCurso(
 id BIGINT IDENTITY(1,1),
 detalle VARCHAR(255),
 
-CONSTRAINT PK_BI_CategoriaCurso PRIMARY KEY (id)
+CONSTRAINT PK_BI_DimCategoriaCurso PRIMARY KEY (id)
 )
 
-CREATE TABLE LOS_GDDES.BI_MetodoDePago(
+CREATE TABLE LOS_GDDES.BI_DimMetodoDePago(
 id BIGINT IDENTITY(1,1),
 detalle VARCHAR(255),
 
-CONSTRAINT PK_BI_MetodoDePago PRIMARY KEY (id)
+CONSTRAINT PK_BI_DimMetodoDePago PRIMARY KEY (id)
 )
 
-CREATE TABLE LOS_GDDES.BI_BloqueSatisfaccion(
+CREATE TABLE LOS_GDDES.BI_DimBloqueSatisfaccion(
 id BIGINT IDENTITY(1,1),
 detalle VARCHAR(255),
 
-    CONSTRAINT PK_BI_BloqueSatisfaccion PRIMARY KEY (id)
+    CONSTRAINT PK_BI_DimBloqueSatisfaccion PRIMARY KEY (id)
 )
 GO
 
+--GRANULARIDAD: CategoriaCurso X TurnoCurso X Año X Sede
 CREATE TABLE LOS_GDDES.BI_HechosInscripcionesCurso (
     id BIGINT IDENTITY(1,1),
-    id_tiempo BIGINT,
+    id_tiempo BIGINT, -- REVISAR ESTO SEGUN LA GRANULARIDAD DE LA VISTA ASHEI
     id_categoriaCurso BIGINT,
     id_turnoCurso BIGINT,
     id_sede BIGINT,
@@ -145,94 +148,115 @@ CREATE TABLE LOS_GDDES.BI_HechosInscripcionesCurso (
     rechazados BIGINT,
 
     CONSTRAINT PK_BI_HechosInscripciones PRIMARY KEY (id),
-    CONSTRAINT FK_BI_HechosInscripciones_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
+    CONSTRAINT FK_BI_HechosInscripciones_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
     CONSTRAINT FK_BI_HechosInscripciones_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
-    CONSTRAINT FK_BI_HechosInscripciones_Turno FOREIGN KEY (id_turnoCurso) REFERENCES LOS_GDDES.BI_TurnoCurso(id),
-    CONSTRAINT FK_BI_HechosInscripciones_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id)
+    CONSTRAINT FK_BI_HechosInscripciones_Turno FOREIGN KEY (id_turnoCurso) REFERENCES LOS_GDDES.BI_DimTurnoCurso(id),
+    CONSTRAINT FK_BI_HechosInscripciones_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id)
 )
 
-CREATE TABLE LOS_GDDES.BI_HechosCursadas (
+-- GRANULARIDAD: SEDE X AÑO
+CREATE TABLE LOS_GDDES.BI_HechosDesempenioCursada(
     id BIGINT IDENTITY(1,1),
     id_tiempo BIGINT,
     id_sede BIGINT,
-    id_categoriaCurso BIGINT,
-    id_turnoCurso BIGINT,
-    id_rangoAlumno BIGINT,
-    id_rangoProfesor BIGINT,
-    cantidad_cursadas INT,
-    cantidad_cursadas_completadas INT,
+    porcentaje_aprobacion DECIMAL(12,2)
 
-    CONSTRAINT PK_BI_HechosCursadas PRIMARY KEY (id),
-    CONSTRAINT FK_BI_HechosCursadas_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
-    CONSTRAINT FK_BI_HechosCursadas_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
-    CONSTRAINT FK_BI_HechosCursadas_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
-    CONSTRAINT FK_BI_HechosCursadas_Turno FOREIGN KEY (id_turnoCurso) REFERENCES LOS_GDDES.BI_TurnoCurso(id),
-    CONSTRAINT FK_BI_HechosCursadas_RangoEtarioAlumno FOREIGN KEY (id_rangoAlumno) REFERENCES LOS_GDDES.BI_RangoEtarioAlumno(id),
-    CONSTRAINT FK_BI_HechosCursadas_RangoEtarioProfesor FOREIGN KEY (id_rangoProfesor) REFERENCES LOS_GDDES.BI_RangoEtarioProfesor(id)
+    CONSTRAINT PK_BI_DesempenioCursada PRIMARY KEY (id),
+    CONSTRAINT FK_BI_DesempenioCursada_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
+    CONSTRAINT FK_BI_DesempenioCursada_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id),
 )
 
+-- GRANULARIDAD: CATEGORIA X AÑO
+CREATE TABLE LOS_GDDES.BI_HechosDuracionCursadas (
+    id BIGINT IDENTITY(1,1),
+    id_tiempo BIGINT,
+    id_categoriaCurso BIGINT,
+    promedio_duracion DECIMAL(12,2),
+
+    CONSTRAINT PK_BI_DuracionCursadas PRIMARY KEY (id),
+    CONSTRAINT FK_BI_DuracionCursadas_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo (id),
+    CONSTRAINT FK_BI_DuracionCursadas_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
+)
+
+--GRANULARIDAD: RangoEtarioAlumno X CategoriaCurso X Semestre
+CREATE TABLE LOS_GDDES.BI_HechosDesempenioFinales(
+    id BIGINT IDENTITY(1,1),
+    id_rangoEtarioAlumno BIGINT,
+    id_categoriaCurso BIGINT,
+    id_tiempo BIGINT,
+    promedio_notas DECIMAL(12,2)
+
+    CONSTRAINT PK_BI_HechosDesempenioFinales PRIMARY KEY (id),
+    CONSTRAINT FK_BI_HechosDesempenioFinales_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo (id),
+    CONSTRAINT FK_BI_HechosDesempenioFinales_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
+)
+
+-- GRANULARIDAD: SEMESTRE X SEDE
+CREATE TABLE LOS_GDDES.BI_HechosAusentismoFinales(
+    id BIGINT IDENTITY(1,1),
+    id_tiempo BIGINT,
+    id_sede BIGINT,
+    porcentaje_ausentismo DECIMAL(12,2)
+
+    CONSTRAINT PK_BI_HechosAusentismoFinales PRIMARY KEY (id),
+    CONSTRAINT FK_BI_HechosAusentismoFinales_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo (id),
+    CONSTRAINT FK_BI_HechosDesempenioFinales_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id)
+)
+
+-- GRANULARIDAD: RangoEtarioProfesor X Sede X AÑO
 CREATE TABLE LOS_GDDES.BI_HechosSatisfaccion (
     id BIGINT IDENTITY(1,1),
     id_tiempo BIGINT,
     id_sede BIGINT,
-    id_categoriaCurso BIGINT,
     id_rangoProfesor BIGINT,
-    id_bloqueSatisfaccion BIGINT,
     cantidad_evaluaciones INT,
     promedio_satisfaccion DECIMAL(5,2),
 
     CONSTRAINT PK_BI_HechosSatisfaccion PRIMARY KEY (id),
-    CONSTRAINT FK_BI_HechosSatisfaccion_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
-    CONSTRAINT FK_BI_HechosSatisfaccion_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
-    CONSTRAINT FK_BI_HechosSatisfaccion_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
-    CONSTRAINT FK_BI_HechosSatisfaccion_RangoProfesor FOREIGN KEY (id_rangoProfesor) REFERENCES LOS_GDDES.BI_RangoEtarioProfesor(id),
-    CONSTRAINT FK_BI_HechosSatisfaccion_BloqueSatisfaccion FOREIGN KEY (id_bloqueSatisfaccion) REFERENCES LOS_GDDES.BI_BloqueSatisfaccion(id)
+    CONSTRAINT FK_BI_HechosSatisfaccion_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
+    CONSTRAINT FK_BI_HechosSatisfaccion_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id),
+    CONSTRAINT FK_BI_HechosSatisfaccion_RangoProfesor FOREIGN KEY (id_rangoProfesor) REFERENCES LOS_GDDES.BI_DimRangoEtarioProfesor(id),
 )
 GO
 
-CREATE TABLE LOS_GDDES.BI_HechosInscripcionesFinal (
-    id BIGINT IDENTITY(1,1),
-    id_tiempo BIGINT,
-    id_sede BIGINT,               
-    inscriptos INT,
-    ausentes INT,
-
-    CONSTRAINT PK_BI_HechosInscripcionesFinal PRIMARY KEY (id),
-    CONSTRAINT FK_BI_HechosInscripcionesFinal_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
-    CONSTRAINT FK_BI_HechosInscripcionesFinal_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id)
-)
-
+-- GRANULARIDAD: SEMESTRE X AÑO
 CREATE TABLE LOS_GDDES.BI_HechosPagos (
     id BIGINT IDENTITY(1,1),
     id_tiempo BIGINT,
-    id_sede BIGINT,
-    id_categoriaCurso BIGINT,
-    id_metodoDePago BIGINT,
     monto_total_pagado DECIMAL(12,2),
     cantidad_pagos INT,
     cantidad_pagos_fuera_termino INT,
 
     CONSTRAINT PK_BI_HechosPagos PRIMARY KEY (id),
-    CONSTRAINT FK_BI_HechosPagos_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
-    CONSTRAINT FK_BI_HechosPagos_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
-    CONSTRAINT FK_BI_HechosPagos_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id),
-    CONSTRAINT FK_BI_HechosPagos_MetodoDePago FOREIGN KEY (id_metodoDePago) REFERENCES LOS_GDDES.BI_MetodoDePago(id)
-)
+    CONSTRAINT FK_BI_HechosPagos_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
+    )
 
+--GRANULARIDAD: MES X AÑO
 CREATE TABLE LOS_GDDES.BI_HechosFacturacion (
     id BIGINT IDENTITY(1,1),
     id_tiempo BIGINT,
-    id_sede BIGINT,
-    id_categoriaCurso BIGINT,
     monto_facturado DECIMAL(12,2),
     monto_pagado DECIMAL(12,2),
+    monto_adeudado DECIMAL(12,2), -- monto_facturado - monto_pagado
 
     CONSTRAINT PK_BI_HechosFacturacion PRIMARY KEY (id),
-    CONSTRAINT FK_BI_HechosFacturacion_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_Tiempo(id),
-    CONSTRAINT FK_BI_HechosFacturacion_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_Sede(id),
-    CONSTRAINT FK_BI_HechosFacturacion_Categoria FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_CategoriaCurso(id)
+    CONSTRAINT FK_BI_HechosFacturacion_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
 )
 GO
+
+--GRANULARIDAD: CategoriaCurso X SEDE X AÑO
+CREATE TABLE LOS_GDDES.BI_HechosIngresos(
+    id BIGINT IDENTITY(1,1),
+    id_tiempo BIGINT,
+    id_categoriaCurso BIGINT,
+    id_sede BIGINT,
+    ingresos DECIMAL(12,2),
+
+    CONSTRAINT PK_BI_HechosIngresos PRIMARY KEY (id),
+    CONSTRAINT FK_BI_HechosIngresos_Tiempo FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
+    CONSTRAINT FK_BI_HechosIngresos_Sede FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id),
+    CONSTRAINT FK_BI_HechosIngresos_CategoriaCurso FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_DimCategoriaCurso(id),
+)
 
 ------------------------------------------ Migracion Tablas ---------------------------------------------------
 
@@ -241,7 +265,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_Tiempo (anio, mes, cuatrimestre, semestre)
+    INSERT INTO LOS_GDDES.BI_DimTiempo (anio, mes, cuatrimestre, semestre)
     SELECT DISTINCT 
         YEAR(fecha) AS anio,
         MONTH(fecha) AS mes,
@@ -275,7 +299,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_Sede (detalle)
+    INSERT INTO LOS_GDDES.BI_DimSede (detalle)
     SELECT DISTINCT nombre
     FROM LOS_GDDES.Sede
     ORDER BY nombre;
@@ -287,7 +311,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_RangoEtarioAlumno (detalle)
+    INSERT INTO LOS_GDDES.BI_DimRangoEtarioAlumno (detalle)
     VALUES ('< 25'), ('25 - 35'), ('35 - 50'), ('> 50');
 END
 GO
@@ -297,7 +321,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_RangoEtarioProfesor (detalle)
+    INSERT INTO LOS_GDDES.BI_DimRangoEtarioProfesor (detalle)
     VALUES ('25 - 35'), ('35 - 50'), ('> 50');
 END
 GO
@@ -307,7 +331,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_TurnoCurso (detalle)
+    INSERT INTO LOS_GDDES.BI_DimTurnoCurso (detalle)
     SELECT DISTINCT nombre
     FROM LOS_GDDES.Turno
     ORDER BY nombre;
@@ -330,7 +354,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_MetodoDePago (detalle)
+    INSERT INTO LOS_GDDES.BI_DimMetodoDePago (detalle)
     SELECT DISTINCT descripcion
     FROM LOS_GDDES.MetodoDePago
     ORDER BY descripcion;
@@ -342,7 +366,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    INSERT INTO LOS_GDDES.BI_BloqueSatisfaccion (detalle)
+    INSERT INTO LOS_GDDES.BI_DimBloqueSatisfaccion (detalle)
     VALUES ('Satisfechos'), ('Neutrales'), ('Insatisfechos');
 END
 
@@ -365,7 +389,7 @@ BEGIN
     INNER JOIN LOS_GDDES.Turno tur ON tur.id = c.id_turno
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
     LEFT JOIN LOS_GDDES.Estado e ON e.id = ic.id_estado
-    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(ic.fecha_inscripcion) AND t.mes = MONTH(ic.fecha_inscripcion)
+    INNER JOIN LOS_GDDES.BI_DimTiempo t ON t.anio = YEAR(ic.fecha_inscripcion) AND t.mes = MONTH(ic.fecha_inscripcion)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_TurnoCurso bt ON bt.detalle = tur.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
@@ -407,7 +431,7 @@ BEGIN
         INNER JOIN LOS_GDDES.Evaluacion_Final ef_inner ON ef_inner.id_final = f.id 
         WHERE ef_inner.presente = 1
     ) ef ON ef.id_curso = c.codigo_curso AND ef.id_alumno = a.legajo
-    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(ic.fecha_inscripcion) AND t.mes = MONTH(ic.fecha_inscripcion)
+    INNER JOIN LOS_GDDES.BI_DimTiempo t ON t.anio = YEAR(ic.fecha_inscripcion) AND t.mes = MONTH(ic.fecha_inscripcion)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_TurnoCurso bt ON bt.detalle = tur.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
@@ -445,7 +469,7 @@ BEGIN
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = f.id_curso
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
     LEFT JOIN LOS_GDDES.Evaluacion_Final ef ON ef.id_final = f.id AND ef.id_alumno = if_.id_alumno
-    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(if_.fecha_inscripcion) AND t.mes = MONTH(if_.fecha_inscripcion)
+    INNER JOIN LOS_GDDES.BI_DimTiempo t ON t.anio = YEAR(if_.fecha_inscripcion) AND t.mes = MONTH(if_.fecha_inscripcion)
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
     WHERE if_.fecha_inscripcion IS NOT NULL
     GROUP BY t.id, bs.id;
@@ -474,7 +498,7 @@ BEGIN
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
     INNER JOIN LOS_GDDES.MetodoDePago mp
         ON mp.id = p.id_metodoDePago
-    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(p.fecha_pago) AND t.mes = MONTH(p.fecha_pago)
+    INNER JOIN LOS_GDDES.BI_DimTiempo t ON t.anio = YEAR(p.fecha_pago) AND t.mes = MONTH(p.fecha_pago)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
     INNER JOIN LOS_GDDES.BI_MetodoDePago bmp ON bmp.detalle = mp.descripcion 
@@ -500,7 +524,7 @@ BEGIN
     INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
     LEFT JOIN LOS_GDDES.Pago p ON p.nro_factura = f.numero_factura
-    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(f.fecha_emision) AND t.mes = MONTH(f.fecha_emision)
+    INNER JOIN LOS_GDDES.BI_DimTiempo t ON t.anio = YEAR(f.fecha_emision) AND t.mes = MONTH(f.fecha_emision)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
     WHERE f.fecha_emision IS NOT NULL
@@ -533,7 +557,7 @@ BEGIN
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
     INNER JOIN LOS_GDDES.Profesor pro ON pro.id = c.id_profesor
     INNER JOIN LOS_GDDES.Persona pp ON pp.id = pro.id_persona
-    INNER JOIN LOS_GDDES.BI_Tiempo t ON t.anio = YEAR(ev.fecha) AND t.mes = MONTH(ev.fecha)
+    INNER JOIN LOS_GDDES.BI_DimTiempo t ON t.anio = YEAR(ev.fecha) AND t.mes = MONTH(ev.fecha)
     INNER JOIN LOS_GDDES.BI_CategoriaCurso bc ON bc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_Sede bs ON bs.detalle = s.nombre
     INNER JOIN LOS_GDDES.BI_RangoEtarioProfesor brp ON brp.detalle = 
@@ -614,10 +638,10 @@ FROM (
             ORDER BY SUM(h.inscriptos) DESC
         ) AS rn
     FROM LOS_GDDES.BI_HechosInscripcionesCurso h
-    JOIN LOS_GDDES.BI_Tiempo t          ON h.id_tiempo       = t.id
-    JOIN LOS_GDDES.BI_Sede s            ON h.id_sede         = s.id
+    JOIN LOS_GDDES.BI_DimTiempo t          ON h.id_tiempo       = t.id
+    JOIN LOS_GDDES.BI_DimSede s            ON h.id_sede         = s.id
     JOIN LOS_GDDES.BI_CategoriaCurso c  ON h.id_categoriaCurso = c.id
-    JOIN LOS_GDDES.BI_TurnoCurso tr     ON h.id_turnoCurso   = tr.id
+    JOIN LOS_GDDES.BI_DimTurnoCurso tr     ON h.id_turnoCurso   = tr.id
     GROUP BY t.anio, s.detalle, c.detalle, tr.detalle
 ) sub
 WHERE sub.rn <= 3;
@@ -633,8 +657,8 @@ SELECT t.mes,
        s.detalle                                                    AS sede,
        SUM(h.rechazados) * 1.0 / NULLIF(SUM(h.inscriptos), 0) * 100 AS tasa_rechazo
 FROM LOS_GDDES.BI_HechosInscripcionesCurso h
-         JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
+         JOIN LOS_GDDES.BI_DimTiempo t ON h.id_tiempo = t.id
+         JOIN LOS_GDDES.BI_DimSede s ON h.id_sede = s.id
 GROUP BY t.mes, s.detalle
 GO
 
@@ -770,8 +794,8 @@ SELECT t.semestre,
        s.detalle                                                  AS sede,
        SUM(h.ausentes) * 1.0 / NULLIF(SUM(h.inscriptos), 0) * 100 AS tasa_ausentismo
 FROM LOS_GDDES.BI_HechosInscripcionesFinal h
-         JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
+         JOIN LOS_GDDES.BI_DimTiempo t ON h.id_tiempo = t.id
+         JOIN LOS_GDDES.BI_DimSede s ON h.id_sede = s.id
 GROUP BY t.semestre, s.detalle
 GO
 
@@ -783,8 +807,8 @@ SELECT t.semestre,
        s.detalle            AS sede,
        SUM(h.cantidad_pagos_fuera_termino) * 1.0 / NULLIF(SUM(h.cantidad_pagos), 0) * 100 AS porcentaje_fuera_termino
 FROM LOS_GDDES.BI_HechosPagos h
-         JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
+         JOIN LOS_GDDES.BI_DimTiempo t ON h.id_tiempo = t.id
+         JOIN LOS_GDDES.BI_DimSede s ON h.id_sede = s.id
 GROUP BY t.semestre, s.detalle
 GO
 
@@ -798,7 +822,7 @@ SELECT t.anio,
        t.mes,
        (SUM(f.monto_facturado - f.monto_pagado) * 1.0 / NULLIF(SUM(f.monto_facturado), 0)) * 100 AS tasa_morosidad
 FROM LOS_GDDES.BI_HechosFacturacion f
-         JOIN LOS_GDDES.BI_Tiempo t ON f.id_tiempo = t.id
+         JOIN LOS_GDDES.BI_DimTiempo t ON f.id_tiempo = t.id
 GROUP BY t.anio, t.mes
 GO
 
@@ -822,8 +846,8 @@ FROM (
             ORDER BY SUM(f.monto_pagado) DESC
         ) AS rn
     FROM LOS_GDDES.BI_HechosFacturacion f
-    JOIN LOS_GDDES.BI_Tiempo t ON f.id_tiempo = t.id
-    JOIN LOS_GDDES.BI_Sede s ON f.id_sede = s.id
+    JOIN LOS_GDDES.BI_DimTiempo t ON f.id_tiempo = t.id
+    JOIN LOS_GDDES.BI_DimSede s ON f.id_sede = s.id
     JOIN LOS_GDDES.BI_CategoriaCurso c ON f.id_categoriaCurso = c.id
     GROUP BY t.anio, s.detalle, c.detalle
 ) sub
@@ -855,10 +879,10 @@ SELECT
     ) / 2       AS indice_satisfaccion
 
 FROM LOS_GDDES.BI_HechosSatisfaccion h
-         JOIN LOS_GDDES.BI_Tiempo t ON h.id_tiempo = t.id
-         JOIN LOS_GDDES.BI_Sede s ON h.id_sede = s.id
-         JOIN LOS_GDDES.BI_RangoEtarioProfesor r ON h.id_rangoProfesor = r.id
-         JOIN LOS_GDDES.BI_BloqueSatisfaccion b ON h.id_bloqueSatisfaccion = b.id
+         JOIN LOS_GDDES.BI_DimTiempo t ON h.id_tiempo = t.id
+         JOIN LOS_GDDES.BI_DimSede s ON h.id_sede = s.id
+         JOIN LOS_GDDES.BI_DimRangoEtarioProfesor r ON h.id_rangoProfesor = r.id
+         JOIN LOS_GDDES.BI_DimBloqueSatisfaccion b ON h.id_bloqueSatisfaccion = b.id
 GROUP BY t.anio, s.detalle, r.detalle
 GO
 
