@@ -360,7 +360,7 @@ INSERT INTO LOS_GDDES.BI_HechosPagos
     (id_tiempo, id_metodoPago, id_sede, cantidad_pagos, suma_importe_pagado, cantidad_pagos_fuera_termino)
 SELECT
     dt.id, dmp.id, ds.id,
-    COUNT(DISTINCT p.id) as cantidad_pagos,
+    COUNT(DISTINCT p.id_pago) as cantidad_pagos,
     SUM(p.importe) as total_pagado,
     SUM(CASE WHEN p.fecha_pago > f.fecha_vencimiento THEN 1 ELSE 0 END) as fuera_termino
 FROM LOS_GDDES.Pago p
