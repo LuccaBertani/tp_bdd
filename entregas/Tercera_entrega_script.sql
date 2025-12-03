@@ -1,11 +1,6 @@
 USE GD2C2025
 GO
 
-/* ======================================================
-   DROPEO COMPLETO DEL MODELO BI (Orden: Vistas -> Hechos -> Dimensiones)
-   ====================================================== */
-
--- Vistas
 IF OBJECT_ID('LOS_GDDES.VW_Top3_Categorias_Turnos', 'V') IS NOT NULL DROP VIEW LOS_GDDES.VW_Top3_Categorias_Turnos;
 IF OBJECT_ID('LOS_GDDES.VW_Tasa_Rechazo', 'V') IS NOT NULL DROP VIEW LOS_GDDES.VW_Tasa_Rechazo;
 IF OBJECT_ID('LOS_GDDES.VW_Porcentaje_Aprobacion_Cursada', 'V') IS NOT NULL DROP VIEW LOS_GDDES.VW_Porcentaje_Aprobacion_Cursada;
@@ -18,7 +13,6 @@ IF OBJECT_ID('LOS_GDDES.VW_Top3_Ingresos_Categoria', 'V') IS NOT NULL DROP VIEW 
 IF OBJECT_ID('LOS_GDDES.VW_Indice_Satisfaccion', 'V') IS NOT NULL DROP VIEW LOS_GDDES.VW_Indice_Satisfaccion;
 IF OBJECT_ID('LOS_GDDES.VW_IndiceSatisfaccion', 'V') IS NOT NULL DROP VIEW LOS_GDDES.VW_IndiceSatisfaccion;
 
--- Tablas de Hechos (Hijas)
 IF OBJECT_ID('LOS_GDDES.BI_HechosInscripcionesCurso', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_HechosInscripcionesCurso;
 IF OBJECT_ID('LOS_GDDES.BI_HechosCursadas', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_HechosCursadas;
 IF OBJECT_ID('LOS_GDDES.BI_HechosInscripcionesFinal', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_HechosInscripcionesFinal;
@@ -27,7 +21,6 @@ IF OBJECT_ID('LOS_GDDES.BI_HechosPagos', 'U') IS NOT NULL DROP TABLE LOS_GDDES.B
 IF OBJECT_ID('LOS_GDDES.BI_HechosFacturacion', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_HechosFacturacion;
 IF OBJECT_ID('LOS_GDDES.BI_HechosSatisfaccion', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_HechosSatisfaccion;
 
--- Dimensiones (Padres)
 IF OBJECT_ID('LOS_GDDES.BI_DimBloqueSatisfaccion', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_DimBloqueSatisfaccion;
 IF OBJECT_ID('LOS_GDDES.BI_DimMetodoDePago', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_DimMetodoDePago;
 IF OBJECT_ID('LOS_GDDES.BI_DimTurnoCurso', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_DimTurnoCurso;
@@ -37,7 +30,6 @@ IF OBJECT_ID('LOS_GDDES.BI_DimRangoEtarioAlumno', 'U') IS NOT NULL DROP TABLE LO
 IF OBJECT_ID('LOS_GDDES.BI_DimSede', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_DimSede;
 IF OBJECT_ID('LOS_GDDES.BI_DimTiempo', 'U') IS NOT NULL DROP TABLE LOS_GDDES.BI_DimTiempo;
 
--- Procedures
 IF OBJECT_ID('LOS_GDDES.SP_POBLAR_BI_TIEMPO', 'P') IS NOT NULL DROP PROCEDURE LOS_GDDES.SP_POBLAR_BI_TIEMPO;
 IF OBJECT_ID('LOS_GDDES.SP_POBLAR_BI_DIMENSIONES_FIJAS', 'P') IS NOT NULL DROP PROCEDURE LOS_GDDES.SP_POBLAR_BI_DIMENSIONES_FIJAS;
 IF OBJECT_ID('LOS_GDDES.SP_POBLAR_BI_HECHOSINSCRIPCIONESCURSO', 'P') IS NOT NULL DROP PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSINSCRIPCIONESCURSO;
@@ -50,9 +42,7 @@ IF OBJECT_ID('LOS_GDDES.SP_POBLAR_BI_HECHOSSATISFACCION', 'P') IS NOT NULL DROP 
 PRINT 'Limpieza completada.';
 GO
 
-/* ============================================================================================
-   CREACION DE DIMENSIONES
-   ============================================================================================ */
+/* DIMENSIONES */
 
 CREATE TABLE LOS_GDDES.BI_DimTiempo (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -99,11 +89,6 @@ CREATE TABLE LOS_GDDES.BI_DimBloqueSatisfaccion (
 );
 GO
 
-/* ============================================================================================
-   CREACION DE TABLAS DE HECHOS (AGRUPADAS)
-   ============================================================================================ */
-
--- 1) HECHOS INSCRIPCIONES CURSO (AGRUPADA)
 CREATE TABLE LOS_GDDES.BI_HechosInscripcionesCurso (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     id_tiempo BIGINT NOT NULL,
@@ -111,8 +96,8 @@ CREATE TABLE LOS_GDDES.BI_HechosInscripcionesCurso (
     id_turnoCurso BIGINT NOT NULL,
     id_sede BIGINT NOT NULL,
     id_rangoEtarioAlumno BIGINT NOT NULL,
-    cantidad_inscriptos INT DEFAULT 0, -- Total de inscripciones
-    cantidad_rechazos INT DEFAULT 0,   -- Total de rechazadas
+    cantidad_inscriptos INT DEFAULT 0,
+    cantidad_rechazos INT DEFAULT 0,
 
     FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
     FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_DimCategoriaCurso(id),
@@ -121,7 +106,6 @@ CREATE TABLE LOS_GDDES.BI_HechosInscripcionesCurso (
     FOREIGN KEY (id_rangoEtarioAlumno) REFERENCES LOS_GDDES.BI_DimRangoEtarioAlumno(id)
 );
 
--- 2) HECHOS CURSADAS (AGRUPADA - KPI 3)
 CREATE TABLE LOS_GDDES.BI_HechosCursadas (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     id_tiempo BIGINT NOT NULL, 
@@ -133,7 +117,6 @@ CREATE TABLE LOS_GDDES.BI_HechosCursadas (
     FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id)
 );
 
--- 3) HECHOS INSCRIPCIONES FINAL (AGRUPADA)
 CREATE TABLE LOS_GDDES.BI_HechosInscripcionesFinal (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     id_tiempo BIGINT NOT NULL,
@@ -144,9 +127,6 @@ CREATE TABLE LOS_GDDES.BI_HechosInscripcionesFinal (
     FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id)
 );
 
--- 4) HECHOS FINALES (AGRUPADA - KPI 4, 5, 6)
--- Agrupamos por nota para poder calcular promedios, o almacenamos suma_notas y cantidad.
--- Para mantener flexibilidad con el promedio (KPI 5) y rangos, agruparemos por las dims.
 CREATE TABLE LOS_GDDES.BI_HechosFinales (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     id_tiempo BIGINT NOT NULL,
@@ -154,9 +134,9 @@ CREATE TABLE LOS_GDDES.BI_HechosFinales (
     id_sede BIGINT NOT NULL,
     id_rangoEtarioAlumno BIGINT NOT NULL,
     cantidad_presentes INT NOT NULL,
-    suma_notas DECIMAL(12,2), -- Suma para calcular promedio en vista
-    suma_tiempo_resolucion INT, -- Suma dias para promedio
-    cantidad_aprobados_con_tiempo INT, -- Divisor para el promedio de tiempo
+    suma_notas DECIMAL(12,2),
+    suma_tiempo_materia_aprobada INT,
+    cantidad_aprobados INT,
 
     FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
     FOREIGN KEY (id_categoriaCurso) REFERENCES LOS_GDDES.BI_DimCategoriaCurso(id),
@@ -164,7 +144,6 @@ CREATE TABLE LOS_GDDES.BI_HechosFinales (
     FOREIGN KEY (id_rangoEtarioAlumno) REFERENCES LOS_GDDES.BI_DimRangoEtarioAlumno(id)
 );
 
--- 5) HECHOS PAGOS (AGRUPADA - KPI 7)
 CREATE TABLE LOS_GDDES.BI_HechosPagos (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     id_tiempo BIGINT NOT NULL,
@@ -172,14 +151,13 @@ CREATE TABLE LOS_GDDES.BI_HechosPagos (
     id_sede BIGINT NOT NULL,
     cantidad_pagos INT,
     suma_importe_pagado DECIMAL(18,2),
-    cantidad_pagos_fuera_termino INT, -- Pre-calculado
+    cantidad_pagos_fuera_termino INT,
 
     FOREIGN KEY (id_tiempo) REFERENCES LOS_GDDES.BI_DimTiempo(id),
     FOREIGN KEY (id_metodoPago) REFERENCES LOS_GDDES.BI_DimMetodoDePago(id),
     FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id)
 );
 
--- 6) HECHOS FACTURACION (AGRUPADA - KPI 8, 9)
 CREATE TABLE LOS_GDDES.BI_HechosFacturacion (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     id_tiempo BIGINT NOT NULL, 
@@ -194,7 +172,6 @@ CREATE TABLE LOS_GDDES.BI_HechosFacturacion (
     FOREIGN KEY (id_sede) REFERENCES LOS_GDDES.BI_DimSede(id)
 );
 
--- 7) HECHOS SATISFACCION (AGRUPADA - KPI 10)
 CREATE TABLE LOS_GDDES.BI_HechosSatisfaccion (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     id_tiempo BIGINT NOT NULL,
@@ -209,10 +186,6 @@ CREATE TABLE LOS_GDDES.BI_HechosSatisfaccion (
     FOREIGN KEY (id_bloqueSatisfaccion) REFERENCES LOS_GDDES.BI_DimBloqueSatisfaccion(id)
 );
 GO
-
-/* ============================================================================================
-   PROCEDIMIENTOS DE CARGA (Con Group By)
-   ============================================================================================ */
 
 CREATE PROCEDURE LOS_GDDES.SP_POBLAR_BI_TIEMPO AS
 BEGIN
@@ -248,7 +221,6 @@ BEGIN
 END
 GO
 
--- SP 1: INSCRIPCIONES CURSO (AGRUPADO)
 CREATE PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSINSCRIPCIONESCURSO AS
 BEGIN
     INSERT INTO LOS_GDDES.BI_HechosInscripcionesCurso
@@ -278,12 +250,10 @@ BEGIN
 END
 GO
 
--- SP 2: CURSADAS (AGRUPADO)
 CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSCURSADAS
 AS
 BEGIN
     SET NOCOUNT ON;
-    -- Primero calculamos el estado por alumno (detalle)
     WITH DetalleCursada AS (
         SELECT 
             ic.id_curso,
@@ -318,7 +288,7 @@ BEGIN
         INNER JOIN LOS_GDDES.Estado est ON est.id = ic.id_estado
         WHERE est.nombre IN ('Aceptada', 'Confirmada')
     )
-    -- Ahora agrupamos e insertamos
+
     INSERT INTO LOS_GDDES.BI_HechosCursadas 
     (id_tiempo, id_sede, cantidad_cursadas_totales, cantidad_cursadas_aprobadas)
     SELECT 
@@ -333,12 +303,11 @@ BEGIN
 END
 GO
 
--- SP 3: FINALES (AGRUPADO)
+
 CREATE PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSFINALES AS
 BEGIN
-    -- 1. HechosFinales (Notas y Tiempos)
     INSERT INTO LOS_GDDES.BI_HechosFinales
-    (id_tiempo, id_categoriaCurso, id_sede, id_rangoEtarioAlumno, cantidad_presentes, suma_notas, suma_tiempo_resolucion, cantidad_aprobados_con_tiempo)
+    (id_tiempo, id_categoriaCurso, id_sede, id_rangoEtarioAlumno, cantidad_presentes, suma_notas, suma_tiempo_materia_aprobada, cantidad_aprobados)
     SELECT
         dt.id, dc.id, ds.id, dra.id,
         SUM(CASE WHEN ef.presente = 1 THEN 1 ELSE 0 END),
@@ -362,7 +331,6 @@ BEGIN
              ELSE '> 50' END
     GROUP BY dt.id, dc.id, ds.id, dra.id;
 
-    -- 2. Inscripciones a Final
     INSERT INTO LOS_GDDES.BI_HechosInscripcionesFinal (id_tiempo, id_sede, cantidad_inscriptos)
     SELECT dt.id, ds.id, COUNT(*)
     FROM LOS_GDDES.Inscripcion_final ifin
@@ -375,7 +343,6 @@ BEGIN
 END
 GO
 
--- SP 4: PAGOS (AGRUPADO)
 CREATE PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSPAGOS
 AS
 BEGIN
@@ -400,13 +367,11 @@ BEGIN
 END
 GO
 
--- SP 5: FACTURACION (AGRUPADO)
 CREATE OR ALTER PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSFACTURACION
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 1. Pre-calcular pagos por factura para evitar subquery en aggregate
     WITH PagosPorFactura AS (
         SELECT 
             p.nro_factura, 
@@ -414,41 +379,22 @@ BEGIN
         FROM LOS_GDDES.Pago p
         GROUP BY p.nro_factura
     )
-    
-    -- 2. Insertar en BI usando la CTE
-    INSERT INTO LOS_GDDES.BI_HechosFacturacion 
+
+    INSERT INTO LOS_GDDES.BI_HechosFacturacion
     (id_tiempo, id_categoriaCurso, id_sede, suma_monto_facturado, suma_monto_adeudado, cantidad_facturas_emitidas)
     SELECT
         dt.id, 
         dc.id, 
-        ds.id, 
-        
-        -- Suma Monto Facturado
+        ds.id,
         SUM(df.monto),
-        
-        -- Suma Monto Adeudado
-        -- Lógica: Monto Item - (Proporción Pagada)
-        -- Proporción Pagada = (Monto Item / Total Factura) * Total Pagado
-        SUM(
-            df.monto - (
-                ISNULL(ppf.total_pagado_factura, 0) 
-                * (df.monto / NULLIF(f.monto_total, 0))
-            )
-        ),
-
-        -- Cantidad de Facturas (Items)
+        SUM(df.monto - (ISNULL(ppf.total_pagado_factura, 0) * (df.monto / NULLIF(f.monto_total, 0)))),
         COUNT(*)
-
     FROM LOS_GDDES.detalle_factura df
     INNER JOIN LOS_GDDES.Factura f ON f.numero_factura = df.id_factura
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = df.id_curso
     INNER JOIN LOS_GDDES.Categoria cat ON cat.id = c.id_categoria
     INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
-    
-    -- Join con CTE de Pagos
     LEFT JOIN PagosPorFactura ppf ON ppf.nro_factura = f.numero_factura
-
-    -- Dimensiones
     INNER JOIN LOS_GDDES.BI_DimTiempo dt ON dt.fecha = f.fecha_emision
     INNER JOIN LOS_GDDES.BI_DimCategoriaCurso dc ON dc.detalle = cat.nombre
     INNER JOIN LOS_GDDES.BI_DimSede ds ON ds.detalle = s.nombre
@@ -457,7 +403,6 @@ BEGIN
 END
 GO
 
--- SP 6: SATISFACCION (YA ESTABA AGRUPADO, OK)
 CREATE PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSSATISFACCION
 AS
 BEGIN
@@ -489,9 +434,7 @@ BEGIN
 END
 GO
 
-/* ============================================================================================
-   CREACIÓN DE VISTAS (KPIs ADAPTADOS A TABLAS AGRUPADAS)
-   ============================================================================================ */
+/* VISTAS */
 
 -- 1. TOP 3 CATEGORÍAS
 CREATE VIEW LOS_GDDES.VW_Top3_Categorias_Turnos AS
@@ -539,7 +482,7 @@ GO
 CREATE VIEW LOS_GDDES.VW_Tiempo_Promedio_Resolucion AS
 SELECT 
     t.anio, c.detalle AS categoria,
-    SUM(h.suma_tiempo_resolucion) * 1.0 / NULLIF(SUM(h.cantidad_aprobados_con_tiempo), 0) AS promedio_dias_resolucion
+    SUM(h.suma_tiempo_materia_aprobada) * 1.0 / NULLIF(SUM(h.cantidad_aprobados), 0) AS promedio_dias_resolucion
 FROM LOS_GDDES.BI_HechosFinales h
 JOIN LOS_GDDES.BI_DimTiempo t ON t.id = h.id_tiempo
 JOIN LOS_GDDES.BI_DimCategoriaCurso c ON c.id = h.id_categoriaCurso
@@ -640,10 +583,7 @@ JOIN LOS_GDDES.BI_DimBloqueSatisfaccion b ON b.id = h.id_bloqueSatisfaccion
 GROUP BY t.anio, s.detalle, rp.detalle;
 GO
 
-/* ============================================================================================
-   EJECUCIÓN DE MIGRACIÓN
-   ============================================================================================ */
-
+/* EJECUCIÓN  */
 BEGIN TRANSACTION;
 BEGIN TRY
     EXEC LOS_GDDES.SP_POBLAR_BI_TIEMPO;
