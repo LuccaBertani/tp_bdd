@@ -42,7 +42,7 @@ IF OBJECT_ID('LOS_GDDES.SP_POBLAR_BI_HECHOSSATISFACCION', 'P') IS NOT NULL DROP 
 PRINT 'Limpieza completada.';
 GO
 
-/* DIMENSIONES */
+/* DIMENSIONES Y HECHOS */
 
 CREATE TABLE LOS_GDDES.BI_DimTiempo (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -344,26 +344,34 @@ END
 GO
 
 CREATE PROCEDURE LOS_GDDES.SP_POBLAR_BI_HECHOSPAGOS
-AS
+    AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO LOS_GDDES.BI_HechosPagos 
-    (id_tiempo, id_metodoPago, id_sede, cantidad_pagos, suma_importe_pagado, cantidad_pagos_fuera_termino)
-    SELECT
-        dt.id, dmp.id, ds.id, 
-        COUNT(*) as cantidad_pagos,
-        SUM(p.importe) as total_pagado,
-        SUM(CASE WHEN p.fecha_pago > f.fecha_vencimiento THEN 1 ELSE 0 END) as fuera_termino
-    FROM LOS_GDDES.Pago p
-    INNER JOIN LOS_GDDES.Factura f ON f.numero_factura = p.nro_factura
-    INNER JOIN LOS_GDDES.detalle_factura df ON df.id_factura = f.numero_factura
+
+WITH FacturaSede AS (
+    SELECT DISTINCT
+        df.id_factura,
+        c.id_sede
+    FROM LOS_GDDES.detalle_factura df
     INNER JOIN LOS_GDDES.Curso c ON c.codigo_curso = df.id_curso
-    INNER JOIN LOS_GDDES.Sede s ON s.id = c.id_sede
-    INNER JOIN LOS_GDDES.MetodoDePago mp ON mp.id = p.id_metodoDePago
-    INNER JOIN LOS_GDDES.BI_DimTiempo dt ON dt.fecha = p.fecha_pago
-    INNER JOIN LOS_GDDES.BI_DimMetodoDePago dmp ON dmp.detalle = mp.descripcion
-    INNER JOIN LOS_GDDES.BI_DimSede ds ON ds.detalle = s.nombre
-    GROUP BY dt.id, dmp.id, ds.id;
+)
+
+INSERT INTO LOS_GDDES.BI_HechosPagos
+    (id_tiempo, id_metodoPago, id_sede, cantidad_pagos, suma_importe_pagado, cantidad_pagos_fuera_termino)
+SELECT
+    dt.id, dmp.id, ds.id,
+    COUNT(DISTINCT p.id) as cantidad_pagos,
+    SUM(p.importe) as total_pagado,
+    SUM(CASE WHEN p.fecha_pago > f.fecha_vencimiento THEN 1 ELSE 0 END) as fuera_termino
+FROM LOS_GDDES.Pago p
+         INNER JOIN LOS_GDDES.Factura f ON f.numero_factura = p.nro_factura
+         INNER JOIN FacturaSede fs ON fs.id_factura = f.numero_factura
+         INNER JOIN LOS_GDDES.Sede s ON s.id = fs.id_sede
+         INNER JOIN LOS_GDDES.MetodoDePago mp ON mp.id = p.id_metodoDePago
+         INNER JOIN LOS_GDDES.BI_DimTiempo dt ON dt.fecha = p.fecha_pago
+         INNER JOIN LOS_GDDES.BI_DimMetodoDePago dmp ON dmp.detalle = mp.descripcion
+         INNER JOIN LOS_GDDES.BI_DimSede ds ON ds.detalle = s.nombre
+GROUP BY dt.id, dmp.id, ds.id;
 END
 GO
 
@@ -441,7 +449,7 @@ CREATE VIEW LOS_GDDES.VW_Top3_Categorias_Turnos AS
 WITH RankingData AS (
     SELECT 
         t.anio, s.detalle AS sede, c.detalle AS categoria, tu.detalle AS turno,
-        SUM(h.cantidad_inscriptos - h.cantidad_rechazos) AS total_inscriptos, -- Usamos la resta de pre-calculados
+        SUM(h.cantidad_inscriptos - h.cantidad_rechazos) AS total_inscriptos,
         ROW_NUMBER() OVER (
             PARTITION BY t.anio, s.detalle 
             ORDER BY SUM(h.cantidad_inscriptos - h.cantidad_rechazos) DESC
